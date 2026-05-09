@@ -50,13 +50,13 @@ class SimulationInput(CamelModel):
 
 class ClickAction(CamelModel):
     type: Literal["click"] = "click"
-    coordinates: tuple[int, int]
+    element_id: int
 
 
 class TypeAction(CamelModel):
     type: Literal["type"] = "type"
     text: str
-    coordinates: tuple[int, int] | None = None
+    element_id: int
     # When true, press Enter after typing. Useful for search bars and forms.
     submit: bool = False
 
@@ -172,8 +172,7 @@ class DecisionOutput(CamelModel):
     page_summary: str
     ux_signal: UxSignal
     action_type: ActionType
-    coordinates_x: int | None = None
-    coordinates_y: int | None = None
+    element_id: int | None = None
     text: str | None = None
     submit: bool = False
     key: KeyName | None = None
@@ -183,14 +182,12 @@ class DecisionOutput(CamelModel):
     def to_action(self) -> JourneyAction:
         t = self.action_type
         if t == "click":
-            x, y = self.coordinates_x or 0, self.coordinates_y or 0
-            return ClickAction(coordinates=(x, y))
+            return ClickAction(element_id=self.element_id or 0)
         if t == "type":
-            coords = None
-            if self.coordinates_x is not None and self.coordinates_y is not None:
-                coords = (self.coordinates_x, self.coordinates_y)
             return TypeAction(
-                text=self.text or "", coordinates=coords, submit=self.submit
+                text=self.text or "",
+                element_id=self.element_id or 0,
+                submit=self.submit,
             )
         if t == "scroll_down":
             return ScrollDownAction()

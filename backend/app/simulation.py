@@ -74,6 +74,9 @@ async def run_simulation(
                 storage.save_run(run)
                 return run
 
+            await browser.index_elements()
+            elements_text = browser.format_elements_for_llm()
+
             try:
                 decision = await provider.decide_next_action(
                     persona=run.persona,
@@ -81,6 +84,7 @@ async def run_simulation(
                     current_step=step_num,
                     screenshot_path=shot_path,
                     previous_steps=run.steps,
+                    elements=elements_text,
                 )
             except Exception as e:
                 log.exception("AI decision failed for run %s step %d", run.id, step_num)

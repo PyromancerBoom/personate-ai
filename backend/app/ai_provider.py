@@ -31,6 +31,7 @@ class AIProvider(Protocol):
         current_step: int,
         screenshot_path: Path,
         previous_steps: list[JourneyStep],
+        elements: str,
     ) -> DecisionOutput: ...
 
     async def generate_report(
@@ -74,23 +75,28 @@ Audience: {audience}
 """
 
 DECISION_SYSTEM = """You ARE the persona described in the user message — a
-real human, not a QA bot. Stay in character. You can only see the current
-screenshot and what you remember from previous steps. Decide what THIS
+real human, not a QA bot. Stay in character. You see the current screenshot
+AND a numbered list of interactable elements on the page. Decide what THIS
 specific person, with their background, concerns, and quirks, would do next.
 
 Rules:
 - Pick exactly ONE action from: click, type, scroll_down, back, wait,
   press_key, stop.
-- Use ONLY visible information. No DOM selectors. No code.
-- Coordinates are in screen pixels relative to the top-left of the viewport
-  ({viewport_width} x {viewport_height}).
-- For click and (optional) type coordinates, choose the centre of the visible
-  target.
-- For type actions on a search/input field, prefer setting submit=true so
-  Enter is pressed after typing. This is more reliable than hunting for a
+- For `click`, set `element_id` to the [N] of the target from the element
+  list. For `type`, set `element_id` to the input's [N] AND provide `text`.
+- You may ONLY click or type into elements that appear in the element list
+  below. Do NOT invent element IDs. If the list is empty or no listed
+  element fits the next step, choose `scroll_down`, `wait`, `back`, or
+  `stop` instead.
+- For `type` on a search box or form field, prefer `submit=true` so Enter
+  is pressed after typing. This is more reliable than hunting for a
   separate submit button.
-- Use press_key with key="enter", "tab", or "escape" when you need to
-  submit a form, advance focus, or dismiss a popup without typing.
+- Use `press_key` with key="enter"/"tab"/"escape" when you need to submit,
+  advance focus, or dismiss a popup without typing.
+- Use the screenshot to understand layout, mood, and visual cues
+  (cluttered vs clean, banners, modals). Use the element list to pick the
+  exact target. The screenshot is your eyes; the element list is your
+  hands.
 - thought: speak in first person AS the persona, in their voice. React to
   what you see — curiosity, doubt, impatience, relief — and tie it to
   something concrete in their background, concerns, or behavioral_traits
@@ -170,6 +176,7 @@ class GeminiProvider:
         current_step: int,
         screenshot_path: Path,
         previous_steps: list[JourneyStep],
+        elements: str,
     ) -> DecisionOutput:
         from google.genai import types  # type: ignore
         client = self._get_client()
@@ -179,16 +186,17 @@ class GeminiProvider:
             f"result={s.result!r} ux_signal={s.ux_signal}"
             for s in previous_steps[-6:]
         ) or "(no previous steps)"
+        last_result = previous_steps[-1].result if previous_steps else "(none)"
 
-        sys_prompt = DECISION_SYSTEM.format(
-            viewport_width=self.settings.viewport_width,
-            viewport_height=self.settings.viewport_height,
-        )
+        sys_prompt = DECISION_SYSTEM
         user_text = (
             f"Persona: {persona.model_dump_json()}\n"
             f"Goal: {goal}\n"
             f"Current step: {current_step}\n"
-            f"Recent history:\n{history}"
+            f"Last action result: {last_result}\n"
+            f"Recent history:\n{history}\n\n"
+            f"Interactable elements on screen "
+            f"(use these IDs for click/type):\n{elements}"
         )
         image_bytes = screenshot_path.read_bytes()
 
@@ -370,22 +378,24 @@ class OpenAIProvider:
         current_step: int,
         screenshot_path: Path,
         previous_steps: list[JourneyStep],
+        elements: str,
     ) -> DecisionOutput:
         history = "\n".join(
             f"step {s.step}: thought={s.thought!r} action={s.action.type} "
             f"result={s.result!r} ux_signal={s.ux_signal}"
             for s in previous_steps[-6:]
         ) or "(no previous steps)"
+        last_result = previous_steps[-1].result if previous_steps else "(none)"
 
-        sys_prompt = DECISION_SYSTEM.format(
-            viewport_width=self.settings.viewport_width,
-            viewport_height=self.settings.viewport_height,
-        )
+        sys_prompt = DECISION_SYSTEM
         user_text = (
             f"Persona: {persona.model_dump_json()}\n"
             f"Goal: {goal}\n"
             f"Current step: {current_step}\n"
-            f"Recent history:\n{history}"
+            f"Last action result: {last_result}\n"
+            f"Recent history:\n{history}\n\n"
+            f"Interactable elements on screen "
+            f"(use these IDs for click/type):\n{elements}"
         )
         b64 = base64.b64encode(screenshot_path.read_bytes()).decode("ascii")
         image_url = f"data:image/png;base64,{b64}"

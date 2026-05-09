@@ -1,7 +1,7 @@
 """Tests for the flat-schema DecisionOutput → JourneyAction conversion.
 
-This is the contract Gemini structured output must satisfy. If Gemini changes
-field handling, only these tests need to be touched.
+This is the contract Gemini/OpenAI structured output must satisfy. If a
+provider changes field handling, only these tests need to be touched.
 """
 import pytest
 
@@ -28,30 +28,28 @@ def _base(**overrides):
 
 
 def test_to_action_click():
-    a = _base(action_type="click", coordinates_x=10, coordinates_y=20).to_action()
+    a = _base(action_type="click", element_id=7).to_action()
     assert isinstance(a, ClickAction)
-    assert a.coordinates == (10, 20)
+    assert a.element_id == 7
 
 
-def test_to_action_click_missing_coords_defaults_zero():
+def test_to_action_click_missing_element_defaults_zero():
     a = _base(action_type="click").to_action()
     assert isinstance(a, ClickAction)
-    assert a.coordinates == (0, 0)
+    assert a.element_id == 0
 
 
-def test_to_action_type_with_coords():
-    a = _base(
-        action_type="type", text="hello", coordinates_x=5, coordinates_y=6
-    ).to_action()
+def test_to_action_type_with_element():
+    a = _base(action_type="type", text="hello", element_id=5).to_action()
     assert isinstance(a, TypeAction)
     assert a.text == "hello"
-    assert a.coordinates == (5, 6)
+    assert a.element_id == 5
 
 
-def test_to_action_type_without_coords():
+def test_to_action_type_without_element_defaults_zero():
     a = _base(action_type="type", text="hi").to_action()
     assert isinstance(a, TypeAction)
-    assert a.coordinates is None
+    assert a.element_id == 0
 
 
 def test_to_action_scroll_down():
@@ -67,7 +65,7 @@ def test_to_action_wait():
 
 
 def test_to_action_type_with_submit():
-    a = _base(action_type="type", text="hello", submit=True).to_action()
+    a = _base(action_type="type", text="hello", element_id=2, submit=True).to_action()
     assert isinstance(a, TypeAction)
     assert a.text == "hello"
     assert a.submit is True
@@ -105,17 +103,15 @@ def test_to_action_stop_missing_fields_defaults_partial():
 
 
 def test_decision_output_round_trips_via_json():
-    """Schema must serialize as flat camelCase so Gemini's response_schema works."""
-    d = _base(action_type="click", coordinates_x=1, coordinates_y=2)
+    """Schema must serialize as flat camelCase so structured output works."""
+    d = _base(action_type="click", element_id=4)
     j = d.model_dump(by_alias=True)
     assert j["actionType"] == "click"
-    assert j["coordinatesX"] == 1
-    assert j["coordinatesY"] == 2
+    assert j["elementId"] == 4
     parsed = DecisionOutput.model_validate(j)
-    assert parsed.to_action().coordinates == (1, 2)
+    assert parsed.to_action().element_id == 4
 
 
 def test_unknown_action_type_raises_at_to_action():
-    # Construction validates Literal, so this is the closest we can get.
     with pytest.raises(Exception):
         _base(action_type="explode")

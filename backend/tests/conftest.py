@@ -47,7 +47,8 @@ class StubProvider:
         )
 
     async def decide_next_action(self, *, persona, goal, current_step,
-                                 screenshot_path, previous_steps) -> DecisionOutput:
+                                 screenshot_path, previous_steps,
+                                 elements="") -> DecisionOutput:
         self.calls.append(f"decide:{current_step}")
         if self.fail_decision:
             raise RuntimeError("stub: decision failed")

@@ -30,7 +30,7 @@ def test_journey_step_camel_alias_round_trip():
         step=1,
         screenshot="/api/runs/x/screenshots/step_001.png",
         thought="hi",
-        action=ClickAction(coordinates=(10, 20)),
+        action=ClickAction(element_id=3),
         ux_signal="confusion",
         page_summary="dash",
         result="clicked",

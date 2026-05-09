@@ -127,8 +127,7 @@ async def test_decide_next_action_parses_flat_schema(
     p._get_client()
     holder[0].queue.append(
         '{"thought":"click it","pageSummary":"a button",'
-        '"uxSignal":"confidence","actionType":"click",'
-        '"coordinatesX":100,"coordinatesY":200}'
+        '"uxSignal":"confidence","actionType":"click","elementId":3}'
     )
     shot = tmp_path / "shot.png"
     shot.write_bytes(b"\x89PNG\r\n\x1a\n")
@@ -139,11 +138,12 @@ async def test_decide_next_action_parses_flat_schema(
     decision = await p.decide_next_action(
         persona=persona, goal="g", current_step=1,
         screenshot_path=shot, previous_steps=[],
+        elements="[3]<button>Go</button>",
     )
     action = decision.to_action()
     from app.models import ClickAction
     assert isinstance(action, ClickAction)
-    assert action.coordinates == (100, 200)
+    assert action.element_id == 3
     # Verify the SDK call used the flat DecisionOutput schema, not a union.
     call = holder[0].aio.models.calls[0]
     cfg = call["config"].kwargs
@@ -176,6 +176,7 @@ async def test_decide_next_action_retries_then_partial_stop(
     decision = await p.decide_next_action(
         persona=persona, goal="g", current_step=1,
         screenshot_path=shot, previous_steps=[],
+        elements="",
     )
     action = decision.to_action()
     assert isinstance(action, StopAction)
