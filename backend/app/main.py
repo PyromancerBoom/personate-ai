@@ -1,7 +1,15 @@
 from __future__ import annotations
 
+import asyncio
+import sys
 from datetime import datetime, timezone
 from urllib.parse import urlparse
+
+# Playwright on Windows must spawn Chromium via subprocess_exec, which is only
+# implemented on ProactorEventLoop. Uvicorn defaults to SelectorEventLoop on
+# Windows, so set the policy at import — before uvicorn builds the loop.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -131,6 +139,13 @@ def create_app(
         prov: AIProvider = Depends(get_provider),
         cfg: Settings = Depends(get_settings_dep),
     ) -> JSONResponse:
+        """Run the simulation synchronously.
+
+        Always returns HTTP 200 with the final SimulationRun on success or
+        run-level failure. The frontend MUST inspect `status` to distinguish
+        "completed" from "failed". Non-2xx responses are reserved for
+        request-level errors (404 for missing run, 409 for state conflicts).
+        """
         if not is_valid_run_id(run_id):
             raise HTTPException(status_code=404, detail="run not found")
         run = store.load_run(run_id)

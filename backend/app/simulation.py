@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from .ai_provider import AIProvider
@@ -11,6 +12,15 @@ from .models import (
     StopAction,
 )
 from .storage import RunStorage
+
+log = logging.getLogger(__name__)
+
+
+def _short_error(prefix: str, e: BaseException) -> str:
+    msg = str(e).strip()
+    if not msg:
+        msg = "see server logs"
+    return f"{prefix}: {type(e).__name__}: {msg}"
 
 
 def _now_iso() -> str:
@@ -45,8 +55,9 @@ async def run_simulation(
         try:
             await browser.start(run.url)
         except Exception as e:
+            log.exception("browser launch/navigation failed for run %s", run.id)
             run.status = "failed"
-            run.error = f"browser launch/navigation failed: {e}"
+            run.error = _short_error("browser launch/navigation failed", e)
             run.updated_at = _now_iso()
             storage.save_run(run)
             return run
@@ -56,8 +67,9 @@ async def run_simulation(
             try:
                 await browser.screenshot(shot_path)
             except Exception as e:
+                log.exception("screenshot failed for run %s step %d", run.id, step_num)
                 run.status = "failed"
-                run.error = f"screenshot failed at step {step_num}: {e}"
+                run.error = _short_error(f"screenshot failed at step {step_num}", e)
                 run.updated_at = _now_iso()
                 storage.save_run(run)
                 return run
@@ -71,15 +83,16 @@ async def run_simulation(
                     previous_steps=run.steps,
                 )
             except Exception as e:
+                log.exception("AI decision failed for run %s step %d", run.id, step_num)
                 if not run.steps:
                     run.status = "failed"
-                    run.error = f"AI decision failed before any step: {e}"
+                    run.error = _short_error("AI decision failed before any step", e)
                     run.updated_at = _now_iso()
                     storage.save_run(run)
                     return run
                 decision_action = StopAction(
                     outcome="partial",
-                    reason=f"AI decision failed: {e}",
+                    reason=_short_error("AI decision failed", e),
                 )
                 step = JourneyStep(
                     step=step_num,
@@ -133,8 +146,9 @@ async def run_simulation(
             run.error = None
             storage.save_report(run.id, report)
         except Exception as e:
+            log.exception("report generation failed for run %s", run.id)
             run.status = "failed"
-            run.error = f"report generation failed: {e}"
+            run.error = _short_error("report generation failed", e)
 
         run.updated_at = _now_iso()
         storage.save_run(run)
