@@ -1,56 +1,86 @@
-# Dev 2 Plan: Product UI And Report Experience
+# Dev 2 Plan: Vite React Report UI
 
-## Ownership
+## Summary
 
-Dev 2 owns the user-facing product: setup flow, persona preview, live run screen, journey timeline, final screenshot-backed report, and demo polish.
+Dev 2 owns the user-facing frontend for Personate AI: setup flow, generated persona preview, blocking run start state, failed-run evidence, and final screenshot-backed report rendering.
 
-The goal is to make the simulation understandable, impressive, and easy to demo, even while Dev 1 is still wiring the real engine.
+Build Dev 2 as a separate Vite + React + TypeScript app in `frontend/`. The frontend talks to Dev 1's FastAPI backend over HTTP. In v1, `POST /api/runs/{id}/start` is a blocking request that returns the final completed or failed `SimulationRun`; do not implement live polling, streaming, or real-time step updates.
 
-Dev 2 should not own AI provider logic, Playwright browser execution, run storage internals, or backend simulation decisions. Those belong to Dev 1.
+Dev 2 does not own AI provider logic, Playwright execution, run storage, screenshot capture, report generation, or backend simulation decisions.
 
-## Core Responsibilities
+## Runtime And Dependencies
 
-- Build the setup screen for URL, goal, and optional audience.
-- Show the generated persona.
-- Start a simulation run.
-- Display live run progress.
-- Show the current screenshot, thought, action, and UX signal.
-- Render a step-by-step journey timeline.
-- Build the final simulation report screen.
-- Highlight screenshot-backed friction moments.
-- Add polished empty, loading, running, completed, and failed states.
-- Support fake sample data first, then connect to Dev 1's API.
+Use Node.js with Vite React TypeScript.
 
-## Suggested File Ownership
+Frontend structure:
 
 ```txt
-app/*
-components/*
-lib/report/*
-lib/client/*
-public/demo/*
+frontend/
+  index.html
+  package.json
+  tsconfig.json
+  vite.config.ts
+  vitest.setup.ts
+  src/
+    main.tsx
+    App.tsx
+    styles.css
+    types/simulation.ts
+    lib/api.ts
+    mocks/mockRun.ts
+    components/
 ```
 
-Avoid editing `lib/ai`, `lib/simulation`, or `lib/playwright` unless coordinating with Dev 1.
+Required frontend packages:
 
-## Build Priority
+```txt
+react
+react-dom
+lucide-react
+vite
+typescript
+vitest
+jsdom
+@vitejs/plugin-react
+@testing-library/react
+@testing-library/jest-dom
+@testing-library/user-event
+```
 
-Prioritize a working visible product over depth.
+Environment variables:
 
-The first useful version can run entirely from fake data as long as it shows:
+```txt
+VITE_API_BASE_URL=http://localhost:8000
+VITE_MOCK_API=false
+```
 
-- Setup form.
-- Persona preview.
-- Simulated run progress.
-- Screenshot area.
-- Journey timeline.
-- Final report with screenshot-backed findings.
+Notes:
 
-After that works, connect the UI to Dev 1's real APIs and improve report polish.
+- `VITE_API_BASE_URL` defaults to `http://localhost:8000`.
+- `VITE_MOCK_API=true` enables frontend-only mock data and does not require a backend or API key.
+- Real runs require Dev 1's backend to be running and configured with its server-side provider key.
 
-## Shared Types
+## Public API Contract
 
-Use these shapes from the shared contract. Coordinate with Dev 1 before changing them.
+Build against Dev 1's routes under `/api`.
+
+```txt
+POST /api/runs
+  body: { url, goal, audience? }
+  returns: SimulationRun with persona
+
+POST /api/runs/{id}/start
+  returns: final SimulationRun with status completed or failed
+
+GET /api/runs/{id}
+  returns: saved SimulationRun
+```
+
+Screenshot paths come from `JourneyStep.screenshot` and `frictionMoments[].screenshot`. Treat backend-relative paths such as `/api/runs/{runId}/screenshots/step_001.png` as canonical and resolve them against `VITE_API_BASE_URL` before rendering.
+
+## Shared Data Models
+
+Mirror Dev 1's camelCase JSON contract in `frontend/src/types/simulation.ts`.
 
 ```ts
 export type Persona = {
@@ -62,6 +92,12 @@ export type Persona = {
   concerns: string[];
   behavioralTraits: string[];
   successCriteria: string;
+};
+
+export type SimulationInput = {
+  url: string;
+  goal: string;
+  audience?: string;
 };
 
 export type JourneyAction =
@@ -105,235 +141,126 @@ export type SimulationRun = {
   persona?: Persona;
   steps: JourneyStep[];
   report?: SimulationReport;
+  error?: string;
   createdAt: string;
   updatedAt: string;
 };
 ```
 
-## Primary Screens
+Do not use `screenshotUrl`; Dev 1's actual contract uses `screenshot`.
 
-### 1. Setup Screen
+## Frontend Behavior
 
-Purpose: let users define the simulation.
-
-Required UI:
-
-- URL input.
-- Goal textarea.
-- Optional audience input.
-- Generate Persona button.
-- Persona preview area.
-- Start Simulation button after persona exists.
-
-Behavior:
-
-- Validate that URL and goal are present.
-- Call `POST /api/runs`.
-- Show the returned persona.
-- Allow the user to start the simulation.
-
-### 2. Run Screen
-
-Purpose: make the live simulation visible.
-
-Required UI:
-
-- Persona card.
-- Run status.
-- Step progress.
-- Current screenshot.
-- Current thought.
-- Current action.
-- Current UX signal.
-- Journey timeline.
-
-Behavior:
-
-- Call `POST /api/runs/:id/start`.
-- Poll `GET /api/runs/:id` every 1-2 seconds, or consume events if Dev 1 provides streaming.
-- Update the current step as new screenshots and logs arrive.
-- Keep completed steps visible in the timeline.
-- Show a transition to the final report when the run completes.
-
-### 3. Insights Screen
-
-Purpose: turn the raw journey into a clear product story.
-
-Required UI:
-
-- Outcome: success, failure, or partial.
-- Persona journey narrative.
-- Timeline with screenshots for each step.
-- Key friction moments with screenshot evidence.
-- Severity labels.
-- Recommendations.
-- Screenshot references for each finding.
-
-Report design goal:
-
-The report should feel like a lightweight UX research artifact, not a QA dashboard.
-
-## API Contract
-
-Build against these endpoints from Dev 1.
+State machine:
 
 ```txt
-POST /api/runs
-  body: { url, goal, audience? }
-  returns: SimulationRun with persona
-
-POST /api/runs/:id/start
-  returns: SimulationRun
-
-GET /api/runs/:id
-  returns: SimulationRun
+idle -> creating -> personaReady -> running -> completed
+                                             -> failed
 ```
 
-Screenshot paths in `JourneyStep.screenshot` should be directly renderable by the UI.
+Setup behavior:
 
-## Fake Data First
+- Validate non-empty URL and goal before calling the backend.
+- Preserve entered values across failures.
+- Clear stale report evidence before creating a new run.
+- Disable duplicate submissions while a run is actively executing.
 
-Do not wait for the real simulation engine.
+Persona behavior:
 
-Create a fake run object with:
+- Call `POST /api/runs` to create the run and generate one persona.
+- Render persona background, motivation, experience level, concerns, behavioral traits, and success criteria.
+- Enable Start Simulation only after a run with a persona exists.
 
-- 1 persona.
-- 6-8 journey steps.
-- Placeholder screenshots.
-- Mixed UX signals.
-- 2-3 friction moments.
-- A final report.
+Start behavior:
 
-Use this to finish the UI while Dev 1 builds the engine.
+- Call `POST /api/runs/{id}/start` once and await the blocking response.
+- Show elapsed time and a neutral in-progress state while the request is open.
+- Do not show fake step progress as real backend progress.
+- Do not set a frontend timeout by default; allow the backend request to finish.
+- If the returned run has `status: "failed"`, render the failed state and any partial evidence.
+- If the returned run has `status: "completed"` but no `report`, show a clear missing-report error.
 
-Example fake scenario:
+Report behavior:
 
-```txt
-Goal: Create a first project after landing on the dashboard.
-Friction: The persona does not recognize where onboarding starts.
-Outcome: partial.
-```
+- Render outcome, summary, persona narrative, recommendations, journey timeline, and friction moments.
+- Render every supported `JourneyAction` variant explicitly.
+- Resolve screenshots with `new URL(screenshot, API_BASE_URL).toString()`.
+- Gracefully handle empty `steps`, empty `frictionMoments`, empty `recommendations`, missing `report`, and failed runs with partial evidence.
 
-## UI States
+Error behavior:
 
-Cover these states:
+- Prefer backend-provided `SimulationRun.error` when available.
+- Parse FastAPI `detail` responses for 400/404/409/500 errors.
+- Show a clear backend-unavailable message for network failures.
+- Keep the user on a recoverable screen with the setup form still populated.
 
-- Empty setup.
-- Persona generating.
-- Persona generated.
-- Simulation starting.
-- Simulation running.
-- Step updated.
-- Simulation completed.
-- Simulation failed.
-- Report loading.
-- Report ready.
+## Component Ownership
+
+Core files:
+
+- `src/App.tsx`: top-level state machine and API flow.
+- `src/types/simulation.ts`: shared contract types.
+- `src/lib/api.ts`: API client, mock mode, error parsing, screenshot URL helper.
+- `src/components/SetupForm.tsx`: URL/goal/audience form.
+- `src/components/PersonaPreview.tsx`: generated persona and start action.
+- `src/components/RunningState.tsx`: blocking-run waiting state.
+- `src/components/ReportView.tsx`: final report shell.
+- `src/components/Timeline.tsx`: journey steps and screenshots.
+- `src/components/FrictionCards.tsx`: screenshot-backed findings.
+- `src/components/ErrorState.tsx`: failed run and partial evidence.
+- `src/components/ActionText.tsx`: explicit action rendering.
+- `src/components/ScreenshotImage.tsx`: screenshot rendering with fallback.
 
 ## Design Priorities
 
-- Make screenshots large and central.
-- Make the persona feel real, but keep the UI work-focused.
-- Use compact cards for timeline steps and findings.
-- Make UX signals easy to scan with restrained labels.
-- Keep the report evidence-first: finding, screenshot, recommendation.
-- Avoid making it look like a test automation tool.
+- Make the UI feel like a practical UX research tool, not a QA automation console.
+- Keep screenshots large enough to inspect.
+- Keep the setup form visible on desktop for fast retry.
+- Use restrained labels for outcome, status, severity, and UX signals.
+- Avoid decorative landing-page composition; first screen should be the usable product.
+- Keep empty and failed states specific, especially when backend setup is missing.
 
-## Phased Plan
+## Test Plan
 
-### Phase 1: Working UI Skeleton
+Unit and component tests with Vitest + Testing Library:
 
-Goal: create a complete visible flow using fake data.
+- Form validation blocks empty URL and goal.
+- API client builds correct URLs.
+- Screenshot helper handles backend-relative and absolute URLs.
+- Persona preview renders returned persona.
+- Action renderer covers every `JourneyAction` variant.
+- Report view renders timeline, friction moments, recommendations, and empty states.
+- Failed state renders backend `error`.
+- Running state disables duplicate starts and setup submission.
+- Creating a new run clears stale report evidence.
 
-Build:
+Manual scenarios:
 
-- Shared type imports or local matching types.
-- Fake run data.
-- Setup screen.
-- Persona preview card.
-- Run screen shell.
-- Final report screen shell.
-
-Done when:
-
-- A user can move through setup, persona preview, run, and report without real backend data.
-- The app already looks like the intended product demo.
-
-### Phase 2: Live Run Experience
-
-Goal: make the simulation feel alive using fake or partial backend data.
-
-Build:
-
-- Current screenshot panel.
-- Current thought panel.
-- Current action panel.
-- Current UX signal display.
-- Step progress indicator.
-- Journey timeline.
-- Loading, running, completed, and failed states.
-
-Done when:
-
-- The run screen visibly updates over steps.
-- Screenshots are central and easy to inspect.
-- The timeline clearly explains what the persona did.
-
-### Phase 3: API Integration
-
-Goal: connect the UI to Dev 1's engine without changing ownership boundaries.
-
-Build:
-
-- `POST /api/runs` integration.
-- `POST /api/runs/:id/start` integration.
-- `GET /api/runs/:id` polling.
-- Screenshot rendering from real paths.
-- Error display for failed runs.
-
-Done when:
-
-- The setup form creates a real run.
-- The run screen renders real steps from Dev 1.
-- The report screen renders real report data.
-
-### Phase 4: Report Polish
-
-Goal: make the final output judge-friendly and product-research oriented.
-
-Build:
-
-- Outcome summary.
-- Persona journey narrative.
-- Screenshot-backed friction cards.
-- Severity labels.
-- Recommendations section.
-- Clean report export or shareable report view if feasible.
-
-Done when:
-
-- The final report can be shown as the main demo artifact.
-- Every major finding has a screenshot reference.
-- The report feels like UX simulation insight, not QA automation.
+- Mock happy path with `VITE_MOCK_API=true`.
+- Mock failed path.
+- Backend unavailable.
+- Real backend create + blocking start + final report.
+- Backend-relative screenshot rendering.
+- Desktop and mobile viewport checks.
 
 ## Integration Checkpoints
 
 ### Checkpoint 1
 
-The UI can show a persona returned by Dev 1.
+Dev 2 can run `npm run dev` from `frontend/`, create a mock run, and render the complete report without Dev 1's backend.
 
 ### Checkpoint 2
 
-The UI can render live journey steps from Dev 1's saved run state.
+Dev 2 can point `VITE_API_BASE_URL` at Dev 1's backend, call `POST /api/runs`, and render the generated persona.
 
 ### Checkpoint 3
 
-The UI can render a complete final report with real screenshots.
+Dev 2 can call blocking `POST /api/runs/{id}/start`, wait for the returned final run, and render completed or failed evidence without polling.
 
-## Demo Success Criteria
+## Assumptions
 
-- A judge can enter a URL and goal.
-- A believable persona appears.
-- The run screen visibly updates as the AI user acts.
-- Screenshots appear in the timeline.
-- The final report clearly explains where the persona got stuck.
-- The final report includes screenshot-backed recommendations.
+- Dev 1 backend runs separately at `http://localhost:8000`.
+- The frontend does not receive or store provider API keys.
+- Real provider credentials live only in Dev 1's backend environment.
+- Live progress, polling, and streaming are out of scope for v1.
+- Complex authentication flows and mobile-native products are out of MVP scope.
