@@ -4,26 +4,26 @@
 
 Personate AI is an AI user simulator for live web products.
 
-Teams provide a product URL, a testing goal, and optionally a target audience. The system generates one realistic user persona, lets that persona operate the live app through Playwright, records the journey, and produces UX insights plus developer-ready Playwright checks.
+Teams provide a product URL, a testing goal, and optionally a target audience. The system generates one realistic user persona, lets that persona operate the live app through Playwright, records the journey, and produces a screenshot-backed UX simulation report.
 
 ## Pitch
 
-AI-generated users operate your live product like real people, simulate different journeys, reveal where each user gets stuck, and generate actionable insights plus Playwright checks.
+AI-generated users operate your live product like real people, simulate journeys, reveal where users get stuck, and generate actionable UX insights with screenshot evidence.
 
 ## Core Workflow
 
 ```txt
 Product URL + testing goal
 ->
-Gemini generates 1 realistic persona
+GPT-5.5 generates 1 realistic persona
 ->
 Each persona operates the live web app through Playwright
 ->
 The system records screenshots, thoughts, actions, and UX signals
 ->
-Gemini generates journey insights with screenshot evidence
+GPT-5.5 generates journey insights with screenshot evidence
 ->
-Cursor SDK generates Playwright checks and developer handoff notes
+GPT-5.5 generates the final UX simulation report
 ```
 
 ## Primary Users
@@ -31,7 +31,7 @@ Cursor SDK generates Playwright checks and developer handoff notes
 - Product teams validating onboarding, conversion, activation, or core workflows.
 - Founders testing early product usability before formal research.
 - Designers and engineers looking for quick UX friction signals.
-- QA teams converting discovered issues into automated checks.
+- Product builders turning simulated journeys into clearer UX decisions.
 
 ## Inputs
 
@@ -61,7 +61,7 @@ Users can configure a simulation run.
 
 ### 2. Persona Generation
 
-Gemini generates one realistic persona based on the goal and optional audience.
+GPT-5.5 generates one realistic persona based on the goal and optional audience.
 
 Each persona should include:
 
@@ -126,7 +126,7 @@ Journey logs should include:
 
 ### 5. Insight Report Generation
 
-Gemini analyzes the journey and produces a final UX report with screenshot evidence.
+GPT-5.5 analyzes the journey and produces a final UX report with screenshot evidence.
 
 The final report should include:
 
@@ -139,15 +139,16 @@ The final report should include:
 - Recommendations.
 - Screenshot references for every major finding.
 
-### 6. Playwright Check Generation
+### 6. Simulation Report Generation
 
-Cursor SDK reads journey logs and insights to generate developer handoff artifacts.
+GPT-5.5 reads journey logs and screenshots to generate the final simulation report.
 
 Outputs:
 
-- Suggested Playwright checks for critical issues.
-- Reproduction steps.
-- Developer-facing issue summary.
+- Persona journey narrative.
+- Screenshot-backed friction summary.
+- Product-facing recommendations.
+- Reproduction steps for key friction moments.
 - Relevant screenshot references.
 
 ## UI Scope
@@ -189,11 +190,11 @@ Required elements:
 - Key friction moments with screenshots.
 - Severity ranking.
 - Recommendations.
-- Generated Playwright checks.
+- Final simulation report.
 
 ## Technical Responsibilities
 
-### Gemini
+### GPT-5.5
 
 - Generate one persona.
 - Understand screenshots.
@@ -201,6 +202,33 @@ Required elements:
 - Simulate user thoughts.
 - Tag UX signals.
 - Generate journey insights.
+
+### AI Provider Layer
+
+All AI behavior should sit behind replaceable interfaces instead of being hardcoded to one model provider.
+
+Default provider for the hackathon MVP:
+
+- OpenAI GPT-5.5.
+
+Replaceable AI capabilities:
+
+- Persona generation.
+- Screenshot understanding.
+- Next-action decision.
+- User thought simulation.
+- UX signal tagging.
+- Final report generation.
+
+Provider contract:
+
+```txt
+AIProvider.generatePersona(input) -> Persona
+AIProvider.decideNextAction(input) -> JourneyDecision
+AIProvider.generateReport(input) -> SimulationReport
+```
+
+This keeps GPT-5.5 as the primary demo model while making it easy to swap in another provider later.
 
 ### Playwright
 
@@ -210,11 +238,11 @@ Required elements:
 - Capture journey evidence.
 - Save logs and screenshots.
 
-### Cursor SDK
+### Optional: Cursor SDK
 
 - Read journey logs and insights.
-- Generate Playwright checks.
-- Create developer handoff notes.
+- Generate deeper developer handoff notes.
+- Suggest implementation changes if the demo includes a connected codebase.
 
 ## Data Model
 
@@ -259,7 +287,7 @@ Required elements:
 - Finding.
 - Evidence.
 - Recommendation.
-- Generated check.
+- Report reference.
 
 ## Constraints
 
@@ -267,6 +295,7 @@ Required elements:
 - Maximum 10-15 steps per journey.
 - Web apps only.
 - Playwright execution only.
+- AI provider must be plug-and-play behind a small interface.
 - Vision and screenshot-based decisions.
 - No DOM selectors for AI simulation decisions.
 - No complex authentication.
@@ -300,7 +329,7 @@ The MVP is successful if a user can:
 5. Review screenshots, thoughts, actions, and UX signals.
 6. See clear findings about where users got stuck or succeeded.
 7. Review screenshot evidence in the final report.
-8. Generate at least one useful Playwright check from a discovered issue.
+8. Generate a useful product-facing simulation report from the discovered friction.
 
 ## Suggested Build Phases
 
@@ -328,7 +357,7 @@ The MVP is successful if a user can:
 - Screenshot-backed report generation.
 - Severity ranking.
 - Recommendations.
-- Playwright check generation.
+- Product-facing simulation report generation.
 
 ### Phase 4: Polish And Reliability
 
@@ -356,4 +385,4 @@ Expected demo output:
 - Persona-specific thoughts and UX signals.
 - Final report with screenshots for timeline steps and key findings.
 - Ranked findings.
-- Generated Playwright checks for the most important friction points.
+- Product-facing recommendations for the most important friction points.
