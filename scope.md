@@ -21,7 +21,7 @@ Each persona operates the live web app through Playwright
 ->
 The system records screenshots, thoughts, actions, and UX signals
 ->
-Gemini generates journey insights
+Gemini generates journey insights with screenshot evidence
 ->
 Cursor SDK generates Playwright checks and developer handoff notes
 ```
@@ -124,19 +124,20 @@ Journey logs should include:
 - Page summary.
 - Completion state.
 
-### 5. Insight Generation
+### 5. Insight Report Generation
 
-Gemini analyzes each journey and produces UX findings.
+Gemini analyzes the journey and produces a final UX report with screenshot evidence.
 
-Insights should include:
+The final report should include:
 
 - Persona outcome.
 - Completion or failure reason.
-- Key friction moments.
+- Journey timeline with step screenshots.
+- Key friction moments with screenshots.
 - Confusion, hesitation, backtracking, or drop-off signals.
 - Severity ranking.
 - Recommendations.
-- Supporting screenshots.
+- Screenshot references for every major finding.
 
 ### 6. Playwright Check Generation
 
@@ -184,7 +185,7 @@ Purpose: review outcomes and export developer-ready findings.
 Required elements:
 
 - Persona outcomes.
-- Journey timelines.
+- Journey timeline with screenshots.
 - Key friction moments with screenshots.
 - Severity ranking.
 - Recommendations.
@@ -298,7 +299,8 @@ The MVP is successful if a user can:
 4. Run that persona through the live app.
 5. Review screenshots, thoughts, actions, and UX signals.
 6. See clear findings about where users got stuck or succeeded.
-7. Generate at least one useful Playwright check from a discovered issue.
+7. Review screenshot evidence in the final report.
+8. Generate at least one useful Playwright check from a discovered issue.
 
 ## Suggested Build Phases
 
@@ -323,6 +325,7 @@ The MVP is successful if a user can:
 
 - Journey summarization.
 - Friction detection.
+- Screenshot-backed report generation.
 - Severity ranking.
 - Recommendations.
 - Playwright check generation.
@@ -351,5 +354,6 @@ Expected demo output:
 - 10-15 recorded steps.
 - Screenshots for each step.
 - Persona-specific thoughts and UX signals.
+- Final report with screenshots for timeline steps and key findings.
 - Ranked findings.
 - Generated Playwright checks for the most important friction points.
