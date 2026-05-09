@@ -52,11 +52,14 @@ export function ReportView({ run, onReset }: { run: SimulationRun; onReset: () =
       <div className="report-header">
         <div>
           <p className="eyebrow">Final simulation report</p>
-          <h1>{outcomeLabels[report.outcome]} outcome</h1>
+          <h1>
+            <span className={`outcome-marker outcome-${outcomeTones[report.outcome]}`} aria-hidden="true" />
+            {outcomeLabels[report.outcome]} outcome
+          </h1>
           <p>{report.summary}</p>
         </div>
         <button className="secondary-button" type="button" onClick={onReset}>
-          <RotateCcw size={17} />
+          <RotateCcw size={17} aria-hidden="true" />
           New simulation
         </button>
       </div>

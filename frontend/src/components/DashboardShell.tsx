@@ -82,6 +82,9 @@ export function DashboardShell({ state, run, children }: DashboardShellProps) {
 
   return (
     <main className={`app-shell ${state === "completed" || state === "failed" ? "wide" : ""}`.trim()}>
+      <a className="skip-to-content" href="#main-content">
+        Skip to content
+      </a>
       <aside className="sidebar" aria-label="Product navigation">
         <div className="brand-mark">
           <div className="brand-glyph" aria-hidden="true">
@@ -112,7 +115,7 @@ export function DashboardShell({ state, run, children }: DashboardShellProps) {
 
       </aside>
 
-      <section className="dashboard-frame">
+      <section className="dashboard-frame" id="main-content" tabIndex={-1}>
         <header className="topbar">
           <div>
             <p className="eyebrow">Simulation workspace</p>
@@ -120,11 +123,15 @@ export function DashboardShell({ state, run, children }: DashboardShellProps) {
           </div>
           <div className="topbar-meta">
             <span className={`status-pill status-${meta.tone}`}>
-              {state === "running" ? <CircleDashed size={13} /> : <CheckCircle2 size={13} />}
+              {state === "running" ? (
+                <CircleDashed size={13} aria-hidden="true" />
+              ) : (
+                <CheckCircle2 size={13} aria-hidden="true" />
+              )}
               {meta.label}
             </span>
             <span className="status-pill status-neutral">
-              <Server size={13} />
+              <Server size={13} aria-hidden="true" />
               {apiHostLabel()}
             </span>
           </div>

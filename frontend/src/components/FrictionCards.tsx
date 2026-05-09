@@ -26,7 +26,7 @@ export function FrictionCards({ moments }: { moments: FrictionMoment[] }) {
               <span className={`severity severity-${moment.severity}`}>{severityRank[moment.severity]}</span>
             </div>
             <h3>
-              <AlertCircle size={18} />
+              <AlertCircle size={18} aria-hidden="true" />
               {moment.finding}
             </h3>
             <p>{moment.recommendation}</p>

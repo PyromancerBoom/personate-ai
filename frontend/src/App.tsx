@@ -120,7 +120,12 @@ export default function App() {
           {state === "completed" && run ? <ReportView run={run} onReset={reset} /> : null}
 
           {state === "failed" ? (
-            <ErrorState message={error ?? run?.error ?? "The simulation failed."} run={run} onReset={reset} />
+            <ErrorState
+              message={error ?? run?.error ?? "The simulation failed."}
+              run={run}
+              onReset={reset}
+              onRetry={() => handleCreateRun(input)}
+            />
           ) : null}
         </section>
       </div>

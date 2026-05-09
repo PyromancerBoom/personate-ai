@@ -1,5 +1,5 @@
 import { Play, SlidersHorizontal } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useId, useState } from "react";
 import type { SimulationInput } from "../types/simulation";
 
 type SetupFormProps = {
@@ -9,11 +9,21 @@ type SetupFormProps = {
   onSubmit: (input: SimulationInput) => void;
 };
 
+const GOAL_MAX = 400;
+
 export function SetupForm({ initialValues, isCreating, isDisabled = false, onSubmit }: SetupFormProps) {
   const [url, setUrl] = useState(initialValues.url);
   const [goal, setGoal] = useState(initialValues.goal);
   const [audience, setAudience] = useState(initialValues.audience ?? "");
   const [errors, setErrors] = useState<{ url?: string; goal?: string }>({});
+
+  const reactId = useId();
+  const urlId = `${reactId}-url`;
+  const goalId = `${reactId}-goal`;
+  const audienceId = `${reactId}-audience`;
+  const urlErrorId = `${urlId}-error`;
+  const goalErrorId = `${goalId}-error`;
+  const goalHintId = `${goalId}-hint`;
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -53,43 +63,60 @@ export function SetupForm({ initialValues, isCreating, isDisabled = false, onSub
         </div>
       </div>
 
-      <label className="field">
-        <span>Product URL</span>
+      <div className="field">
+        <label htmlFor={urlId}>Product URL</label>
         <input
+          id={urlId}
           value={url}
           onChange={(event) => setUrl(event.target.value)}
           placeholder="http://localhost:3000"
           aria-invalid={Boolean(errors.url)}
+          aria-describedby={errors.url ? urlErrorId : undefined}
           disabled={isDisabled}
         />
-        {errors.url ? <small className="field-error">{errors.url}</small> : null}
-      </label>
+        {errors.url ? (
+          <small className="field-error" id={urlErrorId}>
+            {errors.url}
+          </small>
+        ) : null}
+      </div>
 
-      <label className="field">
-        <span>Testing goal</span>
+      <div className="field">
+        <label htmlFor={goalId}>Testing goal</label>
         <textarea
+          id={goalId}
           value={goal}
-          onChange={(event) => setGoal(event.target.value)}
+          onChange={(event) => setGoal(event.target.value.slice(0, GOAL_MAX))}
           placeholder="Test whether a new user can create their first project."
           rows={5}
           aria-invalid={Boolean(errors.goal)}
+          aria-describedby={[errors.goal ? goalErrorId : null, goalHintId].filter(Boolean).join(" ") || undefined}
           disabled={isDisabled}
+          maxLength={GOAL_MAX}
         />
-        {errors.goal ? <small className="field-error">{errors.goal}</small> : null}
-      </label>
+        <div className="field-hint" id={goalHintId} aria-live="polite">
+          {goal.length}/{GOAL_MAX}
+        </div>
+        {errors.goal ? (
+          <small className="field-error" id={goalErrorId}>
+            {errors.goal}
+          </small>
+        ) : null}
+      </div>
 
-      <label className="field">
-        <span>Audience</span>
+      <div className="field">
+        <label htmlFor={audienceId}>Audience</label>
         <input
+          id={audienceId}
           value={audience}
           onChange={(event) => setAudience(event.target.value)}
           placeholder="Non-technical small business owners"
           disabled={isDisabled}
         />
-      </label>
+      </div>
 
       <button className="primary-button" type="submit" disabled={isCreating || isDisabled}>
-        <Play size={18} />
+        <Play size={18} aria-hidden="true" />
         {isDisabled ? "Simulation running..." : isCreating ? "Generating persona..." : "Generate persona"}
       </button>
     </form>

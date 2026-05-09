@@ -21,13 +21,13 @@ export function PersonaPreview({ persona, input, isRunning, onStart }: PersonaPr
           <span>{persona.experienceLevel}</span>
         </div>
         <div className="persona-status">
-          <CheckCircle2 size={14} />
+          <CheckCircle2 size={14} aria-hidden="true" />
           Ready to run
         </div>
       </div>
 
       <div className="persona-context">
-        <Goal size={16} />
+        <Goal size={16} aria-hidden="true" />
         <div className="persona-context-rows">
           <div className="persona-context-row">
             <span>Goal</span>
@@ -79,7 +79,7 @@ export function PersonaPreview({ persona, input, isRunning, onStart }: PersonaPr
       </div>
 
       <button className="primary-button" type="button" onClick={onStart} disabled={isRunning}>
-        <ArrowRight size={18} />
+        <ArrowRight size={18} aria-hidden="true" />
         {isRunning ? "Simulation running..." : "Start simulation"}
       </button>
     </section>

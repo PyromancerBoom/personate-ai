@@ -11,8 +11,9 @@ export function RunningState({ personaName }: { personaName?: Persona["name"] })
   }, []);
 
   return (
-    <section className="running-panel" aria-live="polite">
-      <div className="loader-wrap">
+    <section className="running-panel" aria-live="polite" aria-busy="true">
+      <div className="running-progress" aria-hidden="true" />
+      <div className="loader-wrap" aria-hidden="true">
         <LoaderCircle className="spinner" size={34} />
       </div>
       <p className="eyebrow">Simulation running</p>
@@ -22,7 +23,7 @@ export function RunningState({ personaName }: { personaName?: Persona["name"] })
         when the simulation is complete.
       </p>
       <div className="elapsed">
-        <Clock size={18} />
+        <Clock size={18} aria-hidden="true" />
         <span>{elapsedSeconds}s elapsed</span>
       </div>
     </section>
