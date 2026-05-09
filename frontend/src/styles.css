@@ -1251,25 +1251,43 @@ div[id="findings"] {
   min-height: 190px;
 }
 
+.friction-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 .friction-meta {
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: var(--space-2);
+  margin-bottom: 0;
   color: var(--text-subtle);
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   font-weight: 900;
 }
 
 .friction-body h3 {
-  display: flex;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--space-2);
+  margin: 0;
   color: var(--text);
-  font-size: 1rem;
+  font-size: var(--text-md);
+  line-height: 1.35;
 }
 
 .friction-body h3 svg {
   color: var(--danger);
   flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.friction-body p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: 1.5;
 }
 
 .error-panel {
