@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.pytest_cache/
+
+# Run artifacts (keep the dir, ignore contents).
+runs/*
+!runs/.gitkeep

@@ -1,5 +1,10 @@
 # Dev 1 Plan: Python FastAPI Simulation Engine
 
+> **Implementation note:** the shipped backend uses **Google Gemini** (env var
+> `GEMINI_API_KEY`, default model `gemini-2.5-pro`) instead of OpenAI as
+> originally planned. The `AIProvider` protocol is unchanged. See
+> `backend/README.md` for current setup.
+
 ## Summary
 
 Dev 1 owns the backend simulation engine for Personate AI: a one-persona UX simulator that uses OpenAI vision and Playwright to operate a live web product, save screenshots and journey logs, and return final report data Dev 2 can render.
