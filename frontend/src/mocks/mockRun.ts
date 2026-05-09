@@ -20,22 +20,28 @@ export const mockCompletedRun: SimulationRun = {
   persona: {
     id: "persona_maya",
     name: "Maya Chen",
-    background: "Runs a small bookkeeping firm and evaluates software between client calls.",
-    motivation: "Wants a simple way to organize client projects without needing implementation help.",
-    experienceLevel: "Comfortable with common SaaS tools, cautious with technical setup.",
+    background: "Maya is 34 and runs a small bookkeeping firm in Portland. She found this tool through a Google search while looking for something to replace the spreadsheet she uses to track client projects. She's evaluating it between client calls during a slow afternoon.",
+    motivation: "I just need something simple to keep track of which clients are in which stage. My spreadsheet is getting out of hand and a coworker said tools like this exist.",
+    experienceLevel: "Uses QuickBooks and Google Sheets daily, has tried Trello once but found it overwhelming. Never set up project management software from scratch.",
     concerns: [
-      "Unclear onboarding steps",
-      "Accidentally choosing the wrong workspace settings",
-      "Losing time to jargon-heavy screens"
+      "Will close the tab if it asks her to sign up before she can see what the product does",
+      "Gets nervous when she sees settings she does not understand and worries about picking the wrong option",
+      "Will not watch a tutorial video, she wants to figure it out by clicking around",
+      "Loses trust if the interface feels too corporate or enterprise-y"
     ],
-    behavioralTraits: ["Scans headings first", "Avoids advanced settings", "Looks for explicit next steps"],
-    successCriteria: "Understands the dashboard and creates a first project without help."
+    behavioralTraits: [
+      "Scans headings and buttons first, rarely reads body text",
+      "Clicks the first option that looks right rather than exploring all choices",
+      "Types short lowercase phrases in search boxes",
+      "Gives up after about 3 confusing screens in a row"
+    ],
+    successCriteria: "Creates a first project and sees it show up in some kind of list or dashboard."
   },
   steps: [
     {
       step: 1,
       screenshot: dashboardSvg,
-      thought: "The dashboard looks clean, and I see a project-related card.",
+      thought: "Ok, there's a Create project thing right there. That's probably what I want.",
       action: { type: "click", coordinates: [236, 326] },
       uxSignal: "progress",
       pageSummary: "Dashboard with a prominent project creation card.",
@@ -44,7 +50,7 @@ export const mockCompletedRun: SimulationRun = {
     {
       step: 2,
       screenshot: formSvg,
-      thought: "This looks like the right form, so I will name the project.",
+      thought: "Alright, project name. I'll just put in the client onboarding one I've been meaning to set up.",
       action: { type: "type", text: "Client onboarding", coordinates: [430, 280] },
       uxSignal: "confidence",
       pageSummary: "New project form with a project name field.",
@@ -53,7 +59,7 @@ export const mockCompletedRun: SimulationRun = {
     {
       step: 3,
       screenshot: frictionSvg,
-      thought: "I am not sure what workspace type means, but continue seems safe.",
+      thought: "Workspace type? I have no idea what that means. I'll just leave it on whatever the default is and hit continue.",
       action: { type: "click", coordinates: [478, 542] },
       uxSignal: "hesitation",
       pageSummary: "Project form with an unclear workspace setting and a Continue button.",
@@ -62,7 +68,7 @@ export const mockCompletedRun: SimulationRun = {
     {
       step: 4,
       screenshot: successSvg,
-      thought: "The project appears to be created, so my main goal is complete.",
+      thought: "Oh cool, it says project created. I can see it right there. That was actually not bad.",
       action: { type: "stop", outcome: "success", reason: "The first project was created." },
       uxSignal: "progress",
       pageSummary: "Project confirmation screen with the newly created project.",

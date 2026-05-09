@@ -8,7 +8,6 @@ import {
   Gauge,
   LayoutDashboard,
   Server,
-  ShieldCheck,
   UserRound
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -111,13 +110,6 @@ export function DashboardShell({ state, run, children }: DashboardShellProps) {
           })}
         </nav>
 
-        <div className="sidebar-status">
-          <div className="sidebar-status-row">
-            <ShieldCheck size={15} />
-            <span>Server-side keys</span>
-          </div>
-          <p>Provider credentials stay in the FastAPI environment and are never exposed to the client bundle.</p>
-        </div>
       </aside>
 
       <section className="dashboard-frame">

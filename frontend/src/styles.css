@@ -191,34 +191,9 @@ html {
   color: var(--text);
 }
 
-.side-nav svg,
-.sidebar-status svg {
+.side-nav svg {
   color: var(--text-subtle);
   flex: 0 0 auto;
-}
-
-.sidebar-status {
-  margin-top: auto;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  background: rgb(255 255 255 / 0.025);
-  padding: 12px;
-}
-
-.sidebar-status-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text);
-  font-size: 0.8rem;
-  font-weight: 800;
-}
-
-.sidebar-status p {
-  margin: 8px 0 0;
-  color: var(--text-subtle);
-  font-size: 0.75rem;
-  line-height: 1.45;
 }
 
 .dashboard-frame {
@@ -985,12 +960,28 @@ html {
 }
 
 .friction-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   background: #0f1218;
 }
 
 .friction-card .screenshot-button,
 .friction-card .screenshot-button img,
+.friction-card .screenshot-fallback {
+  height: auto;
+  min-height: 0;
+}
+
+.friction-card .screenshot-button {
+  aspect-ratio: 16 / 9;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.friction-card .screenshot-button img {
+  height: 100%;
+}
+
 .friction-card .screenshot-fallback {
   min-height: 190px;
 }
@@ -1082,10 +1073,6 @@ html {
   .side-nav {
     display: flex;
     min-width: max-content;
-  }
-
-  .sidebar-status {
-    display: none;
   }
 
   .setup-column {
