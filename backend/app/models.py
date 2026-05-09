@@ -57,6 +57,8 @@ class TypeAction(CamelModel):
     type: Literal["type"] = "type"
     text: str
     coordinates: tuple[int, int] | None = None
+    # When true, press Enter after typing. Useful for search bars and forms.
+    submit: bool = False
 
 
 class ScrollDownAction(CamelModel):
@@ -69,6 +71,14 @@ class BackAction(CamelModel):
 
 class WaitAction(CamelModel):
     type: Literal["wait"] = "wait"
+
+
+KeyName = Literal["enter", "tab", "escape"]
+
+
+class PressKeyAction(CamelModel):
+    type: Literal["press_key"] = "press_key"
+    key: KeyName
 
 
 class StopAction(CamelModel):
@@ -84,6 +94,7 @@ JourneyAction = Annotated[
         ScrollDownAction,
         BackAction,
         WaitAction,
+        PressKeyAction,
         StopAction,
     ],
     Field(discriminator="type"),
@@ -143,7 +154,9 @@ class PersonaOutput(CamelModel):
     success_criteria: str
 
 
-ActionType = Literal["click", "type", "scroll_down", "back", "wait", "stop"]
+ActionType = Literal[
+    "click", "type", "scroll_down", "back", "wait", "press_key", "stop"
+]
 
 
 class DecisionOutput(CamelModel):
@@ -162,6 +175,8 @@ class DecisionOutput(CamelModel):
     coordinates_x: int | None = None
     coordinates_y: int | None = None
     text: str | None = None
+    submit: bool = False
+    key: KeyName | None = None
     outcome: Outcome | None = None
     reason: str | None = None
 
@@ -174,13 +189,17 @@ class DecisionOutput(CamelModel):
             coords = None
             if self.coordinates_x is not None and self.coordinates_y is not None:
                 coords = (self.coordinates_x, self.coordinates_y)
-            return TypeAction(text=self.text or "", coordinates=coords)
+            return TypeAction(
+                text=self.text or "", coordinates=coords, submit=self.submit
+            )
         if t == "scroll_down":
             return ScrollDownAction()
         if t == "back":
             return BackAction()
         if t == "wait":
             return WaitAction()
+        if t == "press_key":
+            return PressKeyAction(key=self.key or "enter")
         if t == "stop":
             return StopAction(
                 outcome=self.outcome or "partial",

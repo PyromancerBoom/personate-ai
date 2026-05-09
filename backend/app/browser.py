@@ -8,11 +8,15 @@ from .models import (
     BackAction,
     ClickAction,
     JourneyAction,
+    PressKeyAction,
     ScrollDownAction,
     StopAction,
     TypeAction,
     WaitAction,
 )
+
+
+_KEY_MAP = {"enter": "Enter", "tab": "Tab", "escape": "Escape"}
 
 
 class BrowserSession:
@@ -83,8 +87,11 @@ class BrowserSession:
                 x, y = self._clamp_xy(*action.coordinates)
                 await page.mouse.click(x, y)
             await page.keyboard.type(action.text, delay=15)
+            if action.submit:
+                await page.keyboard.press("Enter")
             await self._settle()
-            return f"typed {action.text!r}"
+            suffix = " + Enter" if action.submit else ""
+            return f"typed {action.text!r}{suffix}"
         if isinstance(action, ScrollDownAction):
             dy = int(self.settings.viewport_height * 0.7)
             await page.mouse.wheel(0, dy)
@@ -97,6 +104,11 @@ class BrowserSession:
         if isinstance(action, WaitAction):
             await page.wait_for_timeout(1000)
             return "waited 1000ms"
+        if isinstance(action, PressKeyAction):
+            key = _KEY_MAP[action.key]
+            await page.keyboard.press(key)
+            await self._settle()
+            return f"pressed {key}"
         if isinstance(action, StopAction):
             return f"stopped: {action.outcome} - {action.reason}"
         return "unknown action"

@@ -46,7 +46,9 @@ def test_create_run_rejects_empty_goal(tmp_settings):
 
 def test_create_run_missing_api_key(tmp_path):
     cfg = Settings(
+        ai_provider="gemini",
         gemini_api_key="",
+        openai_api_key="",
         runs_dir=tmp_path / "runs",
         max_journey_steps=4,
     )

@@ -9,6 +9,7 @@ from app.models import (
     BackAction,
     ClickAction,
     DecisionOutput,
+    PressKeyAction,
     ScrollDownAction,
     StopAction,
     TypeAction,
@@ -63,6 +64,30 @@ def test_to_action_back():
 
 def test_to_action_wait():
     assert isinstance(_base(action_type="wait").to_action(), WaitAction)
+
+
+def test_to_action_type_with_submit():
+    a = _base(action_type="type", text="hello", submit=True).to_action()
+    assert isinstance(a, TypeAction)
+    assert a.text == "hello"
+    assert a.submit is True
+
+
+def test_to_action_press_key_enter():
+    a = _base(action_type="press_key", key="enter").to_action()
+    assert isinstance(a, PressKeyAction)
+    assert a.key == "enter"
+
+
+def test_to_action_press_key_defaults_enter_when_missing():
+    a = _base(action_type="press_key").to_action()
+    assert isinstance(a, PressKeyAction)
+    assert a.key == "enter"
+
+
+def test_to_action_press_key_tab_and_escape():
+    assert _base(action_type="press_key", key="tab").to_action().key == "tab"
+    assert _base(action_type="press_key", key="escape").to_action().key == "escape"
 
 
 def test_to_action_stop():

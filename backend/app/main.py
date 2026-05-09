@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 from contextlib import asynccontextmanager
 
-from .ai_provider import AIProvider, GeminiProvider
+from .ai_provider import AIProvider, build_provider
 from .config import Settings, get_settings
 from .models import SimulationInput, SimulationRun
 from .simulation import run_simulation
@@ -60,7 +60,7 @@ def create_app(
 ) -> FastAPI:
     settings = settings or get_settings()
     storage = storage or RunStorage(settings.runs_dir)
-    provider = provider or GeminiProvider(settings)
+    provider = provider or build_provider(settings)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -94,10 +94,14 @@ def create_app(
         cfg: Settings = Depends(get_settings_dep),
     ) -> JSONResponse:
         _validate_input(req)
-        if not cfg.gemini_api_key:
+        key_ok = (
+            (cfg.ai_provider == "gemini" and cfg.gemini_api_key)
+            or (cfg.ai_provider == "openai" and cfg.openai_api_key)
+        )
+        if not key_ok:
             raise HTTPException(
                 status_code=500,
-                detail="GEMINI_API_KEY is not configured",
+                detail=f"{cfg.ai_provider.upper()}_API_KEY is not configured",
             )
         run_id = store.new_run_id()
         run = SimulationRun(
