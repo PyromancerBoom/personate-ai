@@ -51,13 +51,11 @@ Environment variables:
 
 ```txt
 VITE_API_BASE_URL=http://localhost:8000
-VITE_MOCK_API=false
 ```
 
 Notes:
 
 - `VITE_API_BASE_URL` defaults to `http://localhost:8000`.
-- `VITE_MOCK_API=true` enables frontend-only mock data and does not require a backend or API key.
 - Real runs require Dev 1's backend to be running and configured with its server-side provider key.
 
 ## Public API Contract
@@ -236,8 +234,6 @@ Unit and component tests with Vitest + Testing Library:
 
 Manual scenarios:
 
-- Mock happy path with `VITE_MOCK_API=true`.
-- Mock failed path.
 - Backend unavailable.
 - Real backend create + blocking start + final report.
 - Backend-relative screenshot rendering.
@@ -247,7 +243,7 @@ Manual scenarios:
 
 ### Checkpoint 1
 
-Dev 2 can run `npm run dev` from `frontend/`, create a mock run, and render the complete report without Dev 1's backend.
+Dev 2 can run `npm run dev` from `frontend/` and see a recoverable backend-unavailable state when Dev 1's backend is not running.
 
 ### Checkpoint 2
 

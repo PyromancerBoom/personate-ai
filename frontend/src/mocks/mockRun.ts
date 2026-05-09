@@ -1,4 +1,4 @@
-import type { SimulationInput, SimulationRun } from "../types/simulation";
+import type { SimulationRun } from "../types/simulation";
 
 const now = new Date().toISOString();
 
@@ -100,42 +100,3 @@ export const mockCompletedRun: SimulationRun = {
   createdAt: now,
   updatedAt: now
 };
-
-export function createDraftMockRun(input: SimulationInput): SimulationRun {
-  return {
-    ...mockCompletedRun,
-    id: `run_mock_${Date.now()}`,
-    url: input.url,
-    goal: input.goal,
-    audience: input.audience,
-    status: "draft",
-    steps: [],
-    report: undefined,
-    error: undefined,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-}
-
-export function createFailedMockRun(draft: SimulationRun): SimulationRun {
-  return {
-    ...draft,
-    status: "failed",
-    error: "The browser could not reach the target URL. Check that the local app is running.",
-    steps: mockCompletedRun.steps.slice(0, 2),
-    updatedAt: new Date().toISOString()
-  };
-}
-
-export function completeMockRun(draft: SimulationRun): SimulationRun {
-  return {
-    ...mockCompletedRun,
-    id: draft.id,
-    url: draft.url,
-    goal: draft.goal,
-    audience: draft.audience,
-    persona: draft.persona ?? mockCompletedRun.persona,
-    createdAt: draft.createdAt,
-    updatedAt: new Date().toISOString()
-  };
-}

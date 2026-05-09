@@ -1,8 +1,6 @@
-import { completeMockRun, createDraftMockRun, createFailedMockRun } from "../mocks/mockRun";
 import type { SimulationInput, SimulationRun } from "../types/simulation";
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
-const USE_MOCK_API = import.meta.env.VITE_MOCK_API === "true";
 
 export class ApiError extends Error {
   status?: number;
@@ -67,19 +65,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-let mockDraftRun: SimulationRun | null = null;
-
-function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
 export async function createRun(input: SimulationInput): Promise<SimulationRun> {
-  if (USE_MOCK_API) {
-    await wait(450);
-    mockDraftRun = createDraftMockRun(input);
-    return mockDraftRun;
-  }
-
   return request<SimulationRun>("/api/runs", {
     method: "POST",
     body: JSON.stringify(input)
@@ -87,31 +73,12 @@ export async function createRun(input: SimulationInput): Promise<SimulationRun> 
 }
 
 export async function startRun(runId: string): Promise<SimulationRun> {
-  if (USE_MOCK_API) {
-    await wait(1400);
-    if (!mockDraftRun || mockDraftRun.id !== runId) {
-      throw new ApiError("Mock run was not found.", 404);
-    }
-    if (mockDraftRun.url.includes("fail")) {
-      return createFailedMockRun(mockDraftRun);
-    }
-    return completeMockRun(mockDraftRun);
-  }
-
   return request<SimulationRun>(`/api/runs/${encodeURIComponent(runId)}/start`, {
     method: "POST"
   });
 }
 
 export async function getRun(runId: string): Promise<SimulationRun> {
-  if (USE_MOCK_API) {
-    await wait(200);
-    if (!mockDraftRun || mockDraftRun.id !== runId) {
-      throw new ApiError("Mock run was not found.", 404);
-    }
-    return mockDraftRun;
-  }
-
   return request<SimulationRun>(`/api/runs/${encodeURIComponent(runId)}`);
 }
 

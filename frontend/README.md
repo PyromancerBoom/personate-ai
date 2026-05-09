@@ -9,19 +9,11 @@ npm install
 npm run dev
 ```
 
-The API base URL defaults to `http://localhost:8000`.
+The API base URL defaults to `http://localhost:8000`. The backend must be running and configured with its server-side AI provider key.
 
 ```bash
 VITE_API_BASE_URL=http://localhost:8000 npm run dev
 ```
-
-Use mock mode while the backend is unavailable:
-
-```bash
-VITE_MOCK_API=true npm run dev
-```
-
-Mock mode does not call the backend and does not need `GEMINI_API_KEY`.
 
 ## Checks
 
