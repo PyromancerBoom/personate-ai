@@ -79,8 +79,11 @@ class StubProvider:
 @pytest.fixture
 def tmp_settings(tmp_path: Path) -> Settings:
     return Settings(
+        ai_provider="gemini",
         gemini_api_key="test-key",
         gemini_model="gemini-2.5-pro",
+        openai_api_key="test-openai-key",
+        openai_model="gpt-5.5",
         playwright_headless=True,
         max_journey_steps=4,
         runs_dir=tmp_path / "runs",

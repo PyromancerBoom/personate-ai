@@ -4,6 +4,7 @@ pydantic
 pydantic-settings
 playwright
 google-genai
+openai
 python-multipart
 pytest
 pytest-asyncio

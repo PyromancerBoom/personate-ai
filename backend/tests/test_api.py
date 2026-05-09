@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.config import Settings
-from app.main import create_app
+from app.main import build_provider, create_app
 from app.storage import RunStorage
 from tests.conftest import StubProvider
 
@@ -47,6 +47,7 @@ def test_create_run_rejects_empty_goal(tmp_settings):
 def test_create_run_missing_api_key(tmp_path):
     cfg = Settings(
         gemini_api_key="",
+        ai_provider="gemini",
         runs_dir=tmp_path / "runs",
         max_journey_steps=4,
     )
@@ -55,6 +56,52 @@ def test_create_run_missing_api_key(tmp_path):
         "/api/runs", json={"url": "http://localhost:3000", "goal": "x"}
     )
     assert resp.status_code == 500
+    assert resp.json()["detail"] == "GEMINI_API_KEY is not configured"
+
+
+def test_create_run_missing_openai_api_key(tmp_path):
+    cfg = Settings(
+        ai_provider="openai",
+        openai_api_key="",
+        runs_dir=tmp_path / "runs",
+        max_journey_steps=4,
+    )
+    client, _, _ = _client(cfg)
+    resp = client.post(
+        "/api/runs", json={"url": "http://localhost:3000", "goal": "x"}
+    )
+    assert resp.status_code == 500
+    assert resp.json()["detail"] == "OPENAI_API_KEY is not configured"
+
+
+def test_build_provider_respects_openai_setting(tmp_path):
+    cfg = Settings(
+        ai_provider="openai",
+        openai_api_key="test-key",
+        runs_dir=tmp_path / "runs",
+    )
+    assert build_provider(cfg).__class__.__name__ == "OpenAIProvider"
+
+
+def test_create_run_provider_error_is_sanitized(tmp_settings):
+    client, _, _ = _client(
+        tmp_settings,
+        provider=type(
+            "FailingProvider",
+            (),
+            {
+                "generate_persona": lambda self, input: (_ for _ in ()).throw(
+                    RuntimeError("429 RESOURCE_EXHAUSTED raw provider payload")
+                )
+            },
+        )(),
+    )
+    resp = client.post(
+        "/api/runs", json={"url": "http://localhost:3000", "goal": "x"}
+    )
+    assert resp.status_code == 502
+    assert "Gemini quota exhausted" in resp.json()["detail"]
+    assert "raw provider payload" not in resp.json()["detail"]
 
 
 def test_get_missing_run_404(tmp_settings):

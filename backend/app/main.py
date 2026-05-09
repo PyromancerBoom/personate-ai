@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 from contextlib import asynccontextmanager
 
-from .ai_provider import AIProvider, GeminiProvider
+from .ai_provider import AIProvider, GeminiProvider, OpenAIProvider
 from .config import Settings, get_settings
 from .models import SimulationInput, SimulationRun
 from .simulation import run_simulation
@@ -53,6 +53,55 @@ def _run_response(run: SimulationRun) -> JSONResponse:
     return JSONResponse(run.model_dump(by_alias=True, exclude_none=True))
 
 
+def _provider_label(settings: Settings) -> str:
+    return "OpenAI" if settings.ai_provider == "openai" else "Gemini"
+
+
+def _provider_api_key(settings: Settings) -> str:
+    if settings.ai_provider == "openai":
+        return settings.openai_api_key
+    return settings.gemini_api_key
+
+
+def _provider_key_name(settings: Settings) -> str:
+    if settings.ai_provider == "openai":
+        return "OPENAI_API_KEY"
+    return "GEMINI_API_KEY"
+
+
+def build_provider(settings: Settings) -> AIProvider:
+    if settings.ai_provider == "openai":
+        return OpenAIProvider(settings)
+    return GeminiProvider(settings)
+
+
+def _provider_error_message(settings: Settings, error: Exception) -> str:
+    raw = str(error)
+    lowered = raw.lower()
+    label = _provider_label(settings)
+    model_var = "OPENAI_MODEL" if settings.ai_provider == "openai" else "GEMINI_MODEL"
+    key_var = _provider_key_name(settings)
+    if "resource_exhausted" in lowered or "quota" in lowered or "429" in lowered:
+        return (
+            f"persona generation failed: {label} quota exhausted for the "
+            "configured model. Check API billing/quota or set a different "
+            f"{model_var}."
+        )
+    if (
+        "api_key" in lowered
+        or "api key" in lowered
+        or "permission" in lowered
+        or "unauth" in lowered
+        or "incorrect api key" in lowered
+        or "invalid api key" in lowered
+    ):
+        return (
+            f"persona generation failed: {label} credentials were rejected. "
+            f"Check the backend {key_var}."
+        )
+    return "persona generation failed: AI provider request failed."
+
+
 def create_app(
     settings: Settings | None = None,
     storage: RunStorage | None = None,
@@ -60,7 +109,7 @@ def create_app(
 ) -> FastAPI:
     settings = settings or get_settings()
     storage = storage or RunStorage(settings.runs_dir)
-    provider = provider or GeminiProvider(settings)
+    provider = provider or build_provider(settings)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -94,10 +143,10 @@ def create_app(
         cfg: Settings = Depends(get_settings_dep),
     ) -> JSONResponse:
         _validate_input(req)
-        if not cfg.gemini_api_key:
+        if not _provider_api_key(cfg):
             raise HTTPException(
                 status_code=500,
-                detail="GEMINI_API_KEY is not configured",
+                detail=f"{_provider_key_name(cfg)} is not configured",
             )
         run_id = store.new_run_id()
         run = SimulationRun(
@@ -113,7 +162,7 @@ def create_app(
             )
         except Exception as e:
             raise HTTPException(
-                status_code=502, detail=f"persona generation failed: {e}"
+                status_code=502, detail=_provider_error_message(cfg, e)
             )
         run.persona = persona
         run.updated_at = _now_iso()

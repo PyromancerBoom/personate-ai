@@ -9,3 +9,7 @@ venv/
 # Run artifacts (keep the dir, ignore contents).
 runs/*
 !runs/.gitkeep
+
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo

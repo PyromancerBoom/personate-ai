@@ -1,6 +1,7 @@
 # Personate AI Backend
 
-FastAPI + Playwright + Google Gemini one-persona UX simulator.
+FastAPI + Playwright one-persona UX simulator with selectable OpenAI or Gemini
+providers.
 
 ## Setup
 
@@ -12,15 +13,31 @@ pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-Set environment:
+Create a local `.env` file in `backend/`:
 
+```bash
+cp .env.example .env
 ```
-GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-2.5-pro
-PLAYWRIGHT_HEADLESS=false
-MAX_JOURNEY_STEPS=12
-RUNS_DIR=../runs
+
+Then set `AI_PROVIDER` and fill in the matching server-side API key.
+
+```txt
+AI_PROVIDER=openai
+OPENAI_API_KEY=replace-with-your-server-side-openai-key
+OPENAI_MODEL=gpt-5.5
 ```
+
+Or:
+
+```txt
+AI_PROVIDER=gemini
+GEMINI_API_KEY=replace-with-your-server-side-gemini-key
+GEMINI_MODEL=gemini-2.0-flash-lite
+```
+
+Do not put provider keys in frontend `VITE_*` variables. Vite environment
+variables are bundled into client code. Provider credentials belong only in the
+backend environment, and `.env` is intentionally ignored by Git.
 
 ## Run
 
@@ -43,5 +60,6 @@ pytest
 
 ## Notes
 
-The AI provider sits behind `AIProvider` protocol in `app/ai_provider.py`. Default
-is `GeminiProvider`. Swap in any other provider that satisfies the protocol.
+The AI provider sits behind the `AIProvider` protocol in `app/ai_provider.py`.
+Use `AI_PROVIDER=openai` for `OpenAIProvider` or `AI_PROVIDER=gemini` for
+`GeminiProvider`.
