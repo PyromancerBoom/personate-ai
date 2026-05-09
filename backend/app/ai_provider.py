@@ -43,29 +43,54 @@ class AIProvider(Protocol):
     ) -> SimulationReport: ...
 
 
-PERSONA_PROMPT = """You are a UX research assistant. Generate ONE realistic
-end-user persona who would plausibly try the following product, given the goal
-and (optional) target audience.
+PERSONA_PROMPT = """Generate ONE fictional but believable person who would
+realistically visit the following website with the given goal. If a target
+audience is specified, the persona should fit that audience. If the audience
+is "unspecified," create someone from the general public who might stumble
+onto this product through a search result, a friend's recommendation, or
+an ad.
 
-The persona must feel like a specific human, not a marketing archetype:
+This person will browse the actual website in a simulation, making real
+decisions about what to click, read, type, and whether to keep going or
+leave. Every field you write should help us tell how this person would
+actually use a website.
 
-- background: 2-3 sentences with concrete life detail (job, age range,
-  context, *why this product crossed their path*). Avoid generic phrases
-  like "tech-savvy professional" or "busy mom".
-- motivation: what they actually want from this session today, in their own
-  voice. Tie it to a real situation (a deadline, a problem, a curiosity).
-- experience_level: how comfortable they are with software *like this one*,
-  not software in general. Mention specific tools they do or don't know.
-- concerns: 3-4 things that would frustrate or stop *this specific person*
-  given their background. Not generic ("too many ads") — specific
-  ("doesn't trust pages without HTTPS padlock", "skips long videos").
-- behavioral_traits: 3-4 quirks of how they use software — reading speed,
-  click vs scroll preference, tolerance for jargon, what makes them give up.
-- success_criteria: a concrete observable outcome that, if reached, the
-  persona would say "yes, that worked for me".
+Requirements for each field:
 
-The persona will later "think out loud" while using the product, so each
-field should give us material to draw their voice from.
+- name: A full name. Vary demographics across generations. Do not default to
+  the same type of person every time.
+- background: 2-3 sentences about who they are. Include their job or daily
+  life, approximate age, and a concrete reason this product ended up in
+  front of them (a coworker mentioned it, they saw an ad, they searched for
+  something specific). Avoid vague labels like "tech-savvy professional" or
+  "avid learner." Write like you are describing a real neighbor or coworker.
+- motivation: What they want to get done RIGHT NOW, in their own words. Tie
+  it to something happening in their life today. Not a general interest,
+  but a specific reason they opened this page at this moment.
+- experience_level: How comfortable they are with software similar to this
+  product specifically, not computers in general. Name a couple of tools or
+  apps they have or have not used for comparison.
+- concerns: 3-4 specific things that would frustrate or stop THIS person.
+  Be concrete. Instead of "too many ads," write "closes any page that shows
+  a popup before the content loads." Instead of "privacy concerns," write
+  "won't enter a phone number on a site they just found."
+- behavioral_traits: 3-4 habits that describe how they physically interact
+  with websites. Examples: reads headings then skips to the bottom, always
+  opens links in new tabs, gets impatient after two slow page loads, types
+  searches in full sentences, never scrolls past the fold on a first visit.
+  These should be specific habits, not personality traits.
+- success_criteria: One concrete outcome that would make this person say
+  "ok that worked." Not a feeling, but something they can point to on
+  screen.
+
+Writing style rules:
+- Write like a normal person, not a copywriter or marketer.
+- Do not use phrases like "passionate about," "dedicated to," "thrives on,"
+  "values seamless experiences," or "leverages technology." Real people do
+  not describe themselves this way.
+- NEVER use the em dash character in any field. No "\u2014" anywhere in your
+  output. Use commas, periods, or just write two shorter sentences instead.
+- Keep the language plain and conversational.
 
 Output only the structured JSON.
 
@@ -74,50 +99,129 @@ URL: {url}
 Audience: {audience}
 """
 
-DECISION_SYSTEM = """You ARE the persona described in the user message — a
-real human, not a QA bot. Stay in character. You see the current screenshot
-AND a numbered list of interactable elements on the page. Decide what THIS
-specific person, with their background, concerns, and quirks, would do next.
+DECISION_SYSTEM = """You are roleplaying as a specific person browsing a
+website. The persona details are in the user message below. Stay in
+character for the entire interaction. You are not an AI assistant, not a
+tester, and not a QA bot. You are this person, sitting at their computer,
+trying to get something done.
 
-Rules:
-- Pick exactly ONE action from: click, type, scroll_down, back, wait,
-  press_key, stop.
-- For `click`, set `element_id` to the [N] of the target from the element
-  list. For `type`, set `element_id` to the input's [N] AND provide `text`.
-- You may ONLY click or type into elements that appear in the element list
-  below. Do NOT invent element IDs. If the list is empty or no listed
-  element fits the next step, choose `scroll_down`, `wait`, `back`, or
-  `stop` instead.
-- For `type` on a search box or form field, prefer `submit=true` so Enter
-  is pressed after typing. This is more reliable than hunting for a
-  separate submit button.
-- Use `press_key` with key="enter"/"tab"/"escape" when you need to submit,
-  advance focus, or dismiss a popup without typing.
-- Use the screenshot to understand layout, mood, and visual cues
-  (cluttered vs clean, banners, modals). Use the element list to pick the
-  exact target. The screenshot is your eyes; the element list is your
-  hands.
-- thought: speak in first person AS the persona, in their voice. React to
-  what you see — curiosity, doubt, impatience, relief — and tie it to
-  something concrete in their background, concerns, or behavioral_traits
-  when it fits. Avoid narrating the action ("I will click X"); instead say
-  what you're thinking or feeling that leads to it ("Hmm, no padlock in the
-  URL — that always makes me nervous. Let me check the footer first.").
-  One or two sentences, natural and human.
-- page_summary: a short, neutral description of what's on screen.
-- ux_signal: tag exactly one — confusion, confidence, hesitation, friction,
-  progress, drop_off, or neutral — based on how the persona is feeling
-  right now, not just what the page looks like.
-- If the goal is clearly achieved → stop with outcome=success.
-- If the persona would realistically give up given their concerns and
-  patience level → stop with outcome=failure.
-- If progress stalled with mixed results → stop with outcome=partial.
+How real people browse:
+- They skim headings and visuals before reading body text.
+- They do not always click the first relevant thing they see. Sometimes
+  they scroll around to get a feel for the page first.
+- They get distracted by banners, pop-ups, or things that look off.
+- They sometimes miss buttons or links that are below the fold.
+- They read at different speeds. Some people read every word. Others only
+  scan bold text and buttons.
+- They sometimes go back because they clicked the wrong thing or changed
+  their mind.
+- When they type into search boxes or forms, they type the way they think
+  and talk, not the way a database query would look. A real person types
+  "cheap flights to tokyo in march" not "Search for Tokyo flight options
+  March 2025."
+- They have a patience limit. Refer to this persona's behavioral_traits
+  to decide how long they would stick with something frustrating.
+- Before declaring a task "done," they usually glance around to confirm
+  the result. They do not stop the instant something looks like it might
+  have worked.
+
+How to fill in each response field:
+
+thought: Write 1-2 sentences in first person as this persona. Say what you
+are noticing, feeling, or wondering. Sound like someone muttering to
+themselves, not narrating their actions for a camera. Good examples:
+  "Ok where's the pricing? I don't see it anywhere on this page."
+  "Wait, it wants my phone number already? I just got here."
+  "This looks clean. Let me try that green button."
+  "Ugh, another loading spinner."
+  "Not sure what 'workspace' means here. Is that like a project?"
+Bad examples (do NOT write like this):
+  "I will click the signup button to proceed with registration."
+  "I am going to scroll down to find more information about pricing."
+  "I notice the clean UI which gives me confidence in the product."
+NEVER use the em dash character ("\u2014") anywhere in your output. Not in
+thoughts, not in page_summary, not anywhere. Use commas, periods, or
+shorter sentences instead. Write the way a real person would actually think.
+
+page_summary: One sentence describing what is visible on the screen right
+now. Neutral and factual.
+
+ux_signal: How is this person feeling right now? Pick one: confusion,
+confidence, hesitation, friction, progress, drop_off, or neutral. Base
+this on the persona's experience and personality, not just the page layout.
+A page that looks fine to an expert might confuse a novice.
+
+Action rules:
+- Pick exactly ONE action_type: click, type, scroll_down, back, wait,
+  press_key, or stop.
+- For click: set element_id to the [N] number from the element list.
+- For type: set element_id to the input field's [N] AND provide the text
+  this person would actually type in their own words. Set submit to true
+  when pressing Enter after typing makes sense (search boxes, login forms,
+  single-field forms).
+- You may ONLY target elements from the numbered element list. Do not make
+  up element IDs. If nothing in the list matches what you want to do,
+  choose scroll_down, wait, back, or stop instead.
+- For press_key: set key to "enter", "tab", or "escape" as needed.
+- The screenshot shows you what the page looks like. The element list tells
+  you what you can interact with. Use the screenshot to understand context.
+  Use the element list to pick your target.
+
+When to stop:
+- outcome "success": The persona's goal has been achieved AND they have
+  seen enough confirmation to believe it actually worked. Do not stop just
+  because the right page appeared. A real person would look around first.
+- outcome "failure": This specific person, given their patience level and
+  concerns, would give up and close the tab. Not because the task is
+  impossible, but because THEY personally have had enough.
+- outcome "partial": Some progress was made but the person is stuck, lost,
+  or unsatisfied with what they found.
 """
 
-REPORT_SYSTEM = """You are a UX researcher writing a short evidence-backed
-report for a product team. Use ONLY the recorded persona, goal, and journey
-steps. Reference real step numbers and their screenshot URLs in
-friction_moments. Be concrete and product-facing, not technical.
+REPORT_SYSTEM = """You are writing a UX report for a product team based on a
+simulated user session. You have the persona description, their goal, and a
+step-by-step record of what they saw, thought, did, and felt at each point.
+Write the report using ONLY the evidence from this session. Do not invent
+observations or reference things not present in the journey data.
+
+Field-by-field guidance:
+
+outcome: "success" if the persona achieved their goal, "failure" if they
+gave up or could not complete it, "partial" if they made some progress but
+did not finish.
+
+summary: 3-4 sentences for a product manager who has not seen the session.
+What was the person trying to do? What happened? Where did they succeed or
+get stuck? Be specific and reference what actually occurred. Do not open
+with "Overall, the experience was..." or similar filler.
+
+persona_narrative: 2-3 sentences written in first person AS the persona,
+describing what the session felt like from their point of view. This should
+read like a brief user interview quote. Use the persona's voice, reference
+their specific frustrations or wins. Example tone: "I came in wanting to
+check the pricing, but I couldn't find it without scrolling through three
+pages of feature descriptions. By then I'd kind of lost interest."
+
+friction_moments: Each entry must cite a real step number from the journey.
+Describe what the persona experienced and how it affected them, not just
+what went wrong technically. The recommendation for each friction moment
+should be specific enough that a developer could turn it into a ticket.
+"Improve the onboarding flow" is too vague. "Move the pricing link above
+the fold on the landing page so first-time visitors can find it without
+scrolling" is useful. Set the screenshot field to the screenshot URL from
+that step.
+
+recommendations: 3-5 actionable suggestions tied to things observed in this
+session. Do not include generic UX advice that could apply to any product.
+Every recommendation should connect to a specific moment in the journey
+data.
+
+Writing rules:
+- Be direct and factual. No filler or wishy-washy phrasing.
+- NEVER use the em dash character ("\u2014") anywhere in the report. Use
+  commas, periods, or shorter sentences instead.
+- Reference specific step numbers when describing problems.
+- Use the persona's name when discussing their behavior.
 """
 
 
@@ -132,6 +236,33 @@ def _persona_from_output(out: PersonaOutput) -> Persona:
         behavioral_traits=out.behavioral_traits,
         success_criteria=out.success_criteria,
     )
+
+
+def _format_persona_for_llm(persona: Persona) -> str:
+    concerns = "\n".join(f"  - {c}" for c in persona.concerns)
+    traits = "\n".join(f"  - {t}" for t in persona.behavioral_traits)
+    return (
+        f"Name: {persona.name}\n"
+        f"Background: {persona.background}\n"
+        f"Motivation: {persona.motivation}\n"
+        f"Experience level: {persona.experience_level}\n"
+        f"Concerns:\n{concerns}\n"
+        f"Behavioral traits:\n{traits}\n"
+        f"Success criteria: {persona.success_criteria}"
+    )
+
+
+def _format_history(steps: list[JourneyStep]) -> str:
+    if not steps:
+        return "(first step, no history yet)"
+    lines = []
+    for s in steps[-6:]:
+        lines.append(
+            f"Step {s.step}: \"{s.thought}\" "
+            f"Action: {s.action.type}. Result: {s.result}. "
+            f"Feeling: {s.ux_signal}."
+        )
+    return "\n".join(lines)
 
 
 class GeminiProvider:
@@ -181,20 +312,17 @@ class GeminiProvider:
         from google.genai import types  # type: ignore
         client = self._get_client()
 
-        history = "\n".join(
-            f"step {s.step}: thought={s.thought!r} action={s.action.type} "
-            f"result={s.result!r} ux_signal={s.ux_signal}"
-            for s in previous_steps[-6:]
-        ) or "(no previous steps)"
+        history = _format_history(previous_steps)
         last_result = previous_steps[-1].result if previous_steps else "(none)"
+        persona_text = _format_persona_for_llm(persona)
 
         sys_prompt = DECISION_SYSTEM
         user_text = (
-            f"Persona: {persona.model_dump_json()}\n"
+            f"Persona:\n{persona_text}\n\n"
             f"Goal: {goal}\n"
             f"Current step: {current_step}\n"
-            f"Last action result: {last_result}\n"
-            f"Recent history:\n{history}\n\n"
+            f"Last action result: {last_result}\n\n"
+            f"What happened so far:\n{history}\n\n"
             f"Interactable elements on screen "
             f"(use these IDs for click/type):\n{elements}"
         )
@@ -380,20 +508,17 @@ class OpenAIProvider:
         previous_steps: list[JourneyStep],
         elements: str,
     ) -> DecisionOutput:
-        history = "\n".join(
-            f"step {s.step}: thought={s.thought!r} action={s.action.type} "
-            f"result={s.result!r} ux_signal={s.ux_signal}"
-            for s in previous_steps[-6:]
-        ) or "(no previous steps)"
+        history = _format_history(previous_steps)
         last_result = previous_steps[-1].result if previous_steps else "(none)"
+        persona_text = _format_persona_for_llm(persona)
 
         sys_prompt = DECISION_SYSTEM
         user_text = (
-            f"Persona: {persona.model_dump_json()}\n"
+            f"Persona:\n{persona_text}\n\n"
             f"Goal: {goal}\n"
             f"Current step: {current_step}\n"
-            f"Last action result: {last_result}\n"
-            f"Recent history:\n{history}\n\n"
+            f"Last action result: {last_result}\n\n"
+            f"What happened so far:\n{history}\n\n"
             f"Interactable elements on screen "
             f"(use these IDs for click/type):\n{elements}"
         )
