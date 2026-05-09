@@ -16,11 +16,18 @@ export type SimulationInput = {
 };
 
 export type JourneyAction =
-  | { type: "click"; coordinates: [number, number] }
-  | { type: "type"; text: string; coordinates?: [number, number] }
+  | { type: "click"; coordinates?: [number, number]; elementId?: number }
+  | {
+      type: "type";
+      text: string;
+      coordinates?: [number, number];
+      elementId?: number;
+      submit?: boolean;
+    }
   | { type: "scroll_down" }
   | { type: "back" }
   | { type: "wait" }
+  | { type: "press_key"; key: "enter" | "tab" | "escape" }
   | { type: "stop"; outcome: "success" | "failure" | "partial"; reason: string };
 
 export type UxSignal =
