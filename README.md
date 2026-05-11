@@ -1,6 +1,24 @@
 # Personate AI
 
-Personate AI is a one-persona UX simulation tool for live web products. You provide a product URL, a testing goal, and an optional audience. The backend generates a persona, drives the live app through Playwright, records screenshots and journey steps, then returns a screenshot-backed UX report for the frontend to display.
+AI-generated users for live-product UX testing.
+
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![Node 20+](https://img.shields.io/badge/Node-20%2B-339933?logo=node.js&logoColor=white)
+![License MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+
+Personate AI is a one-persona UX simulation tool for live web products. Provide a product URL, a testing goal, and an optional audience. The backend generates a persona, drives the live app through Playwright, records screenshots and journey steps, then returns a screenshot-backed UX report for the frontend to display.
+
+## Features
+
+- Generate a realistic user persona from a target URL, goal, and audience.
+- Run that persona through a live web app with Playwright.
+- Capture screenshots, thoughts, actions, UX signals, and completion status.
+- Review a screenshot-backed UX report with friction moments and recommendations.
+- Use Gemini or OpenAI through a small provider layer.
+
+## Tech Stack
+
+FastAPI, Playwright, Pydantic, React, Vite, TypeScript, Gemini, and OpenAI.
 
 ## Project Structure
 
@@ -22,7 +40,21 @@ runs/      Generated run JSON and screenshots
 ```bash
 cd backend
 python -m venv .venv
-. .venv/bin/activate
+```
+
+Activate the virtual environment:
+
+```bash
+# macOS/Linux
+source .venv/bin/activate
+
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+```
+
+Install dependencies and Playwright Chromium:
+
+```bash
 pip install -r requirements.txt
 python -m playwright install chromium
 ```
@@ -31,8 +63,14 @@ Create `backend/.env` from `backend/.env.example` and set your provider key.
 
 ```txt
 AI_PROVIDER=gemini
+
 GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-2.5-pro
+
+# Used only when AI_PROVIDER=openai
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+
 PLAYWRIGHT_HEADLESS=false
 MAX_JOURNEY_STEPS=12
 RUNS_DIR=../runs
@@ -43,7 +81,7 @@ OpenAI is also supported by the provider layer:
 ```txt
 AI_PROVIDER=openai
 OPENAI_API_KEY=...
-OPENAI_MODEL=gpt-5.5
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 Run the backend from the `backend/` directory so `.env` is loaded correctly:
@@ -79,6 +117,10 @@ The frontend always talks to the real backend. There is no runtime mock simulati
 
 Generated artifacts are written under `runs/{runId}/`.
 
+## Repository Hygiene
+
+Local environment files, generated runs, dependency folders, Vite cache, test cache, coverage output, and local assistant/editor state are ignored by Git. Keep secrets in `backend/.env`; only commit `backend/.env.example`.
+
 ## API
 
 - `POST /api/runs` creates a draft run and generates a persona.
@@ -92,7 +134,6 @@ Backend:
 
 ```bash
 cd backend
-. .venv/bin/activate
 pytest
 ```
 
@@ -110,3 +151,7 @@ npm run build
 - `API_KEY is not configured`: set the provider key in `backend/.env` and restart the backend.
 - Browser launch errors: run `python -m playwright install chromium` inside the backend environment.
 - Port already in use: stop the existing process or run the service on a different port and update `VITE_API_BASE_URL` for the frontend.
+
+## License
+
+Personate AI is released under the [MIT License](LICENSE).
