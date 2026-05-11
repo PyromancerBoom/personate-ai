@@ -1,0 +1,155 @@
+{
+  "id": "eb794fe27b38",
+  "url": "https://demo.playwright.dev/todomvc/",
+  "goal": "Add two todos: \"Buy milk\" and \"Call supplier\", then mark \"Buy milk\" as completed.",
+  "audience": "Busy small business owner",
+  "status": "completed",
+  "persona": {
+    "id": "9f5a0c44",
+    "name": "Maria Santos",
+    "background": "Maria Santos is 43 and runs a small neighborhood cafe with six employees. She spends most mornings checking inventory, answering vendor texts, and making quick notes between customers. She opened this todo demo after searching for a simple browser checklist she could use on the front counter laptop without setting up an account.",
+    "motivation": "I need to quickly write down Buy milk and Call supplier before the lunch rush, then mark Buy milk done because I already asked my nephew to pick it up.",
+    "experienceLevel": "She has used basic checklist apps like Apple Reminders and the notes app on her phone, but she does not use project management tools like Asana, Trello, or Monday. She is comfortable typing quick items into a simple list and checking them off, but she does not want to learn extra features right now.",
+    "concerns": [
+      "Will not sign up for anything just to make a short list.",
+      "Gets annoyed if the todo she typed disappears after pressing Enter.",
+      "May think the site is broken if she cannot immediately see where to mark an item completed.",
+      "Will close the tab if a popup blocks the list area before she can type."
+    ],
+    "behavioralTraits": [
+      "Scans the page for an input box first and starts typing before reading any instructions.",
+      "Uses the Enter key to add items if the page seems to support it.",
+      "Clicks directly on checkboxes or item text rather than looking for menus.",
+      "Leaves the page if she has to create an account or read a long onboarding screen."
+    ],
+    "successCriteria": "The page shows two todo items, Buy milk and Call supplier, and Buy milk is visibly checked off as completed."
+  },
+  "steps": [
+    {
+      "step": 1,
+      "screenshot": "/api/runs/eb794fe27b38/screenshots/step_001.png",
+      "thought": "Good, no signup junk, just the box. I'll put the first thing in before I forget.",
+      "action": {
+        "type": "type",
+        "text": "Buy milk",
+        "elementId": 1,
+        "submit": true
+      },
+      "uxSignal": "confidence",
+      "pageSummary": "The TodoMVC page shows a large todos heading and a single input box labeled What needs to be done.",
+      "result": "typed 'Buy milk' into element 1 via fill + Enter"
+    },
+    {
+      "step": 2,
+      "screenshot": "/api/runs/eb794fe27b38/screenshots/step_002.png",
+      "thought": "Okay, Buy milk stayed there, good. I'll add the supplier call now before I get pulled away.",
+      "action": {
+        "type": "type",
+        "text": "Call supplier",
+        "elementId": 1,
+        "submit": true
+      },
+      "uxSignal": "progress",
+      "pageSummary": "The TodoMVC page shows one todo item, Buy milk, with an empty input box above it and filter links below.",
+      "result": "typed 'Call supplier' into element 1 via fill + Enter"
+    },
+    {
+      "step": 3,
+      "screenshot": "/api/runs/eb794fe27b38/screenshots/step_003.png",
+      "thought": "There's the little circle by Buy milk, that's what I need. Hm, I want to get that checked off before I walk away.",
+      "action": {
+        "type": "press_key",
+        "key": "tab"
+      },
+      "uxSignal": "progress",
+      "pageSummary": "The TodoMVC list shows two items, Buy milk and Call supplier, each with an empty circular checkbox on the left, plus filter links below.",
+      "result": "pressed Tab"
+    },
+    {
+      "step": 4,
+      "screenshot": "/api/runs/eb794fe27b38/screenshots/step_004.png",
+      "thought": "Maybe tab put me on that first circle. I'll hit Enter and see if Buy milk crosses off.",
+      "action": {
+        "type": "press_key",
+        "key": "enter"
+      },
+      "uxSignal": "progress",
+      "pageSummary": "The TodoMVC list shows two items, Buy milk and Call supplier, with empty circular checkboxes beside each and filter links below.",
+      "result": "pressed Enter"
+    },
+    {
+      "step": 5,
+      "screenshot": "/api/runs/eb794fe27b38/screenshots/step_005.png",
+      "thought": "Hmm, that didn't check it. I can see the circle right there, but maybe the keyboard landed somewhere else.",
+      "action": {
+        "type": "press_key",
+        "key": "tab"
+      },
+      "uxSignal": "friction",
+      "pageSummary": "The TodoMVC page shows two unchecked items, Buy milk and Call supplier, with filters at the bottom and 2 items left.",
+      "result": "pressed Tab"
+    },
+    {
+      "step": 6,
+      "screenshot": "/api/runs/eb794fe27b38/screenshots/step_006.png",
+      "thought": "Alright, maybe now it's on the little circle. I'll try Enter one more time, but this is getting fiddly for such a simple list.",
+      "action": {
+        "type": "press_key",
+        "key": "enter"
+      },
+      "uxSignal": "friction",
+      "pageSummary": "The todo list shows Buy milk and Call supplier with empty circles on the left, plus filters at the bottom.",
+      "result": "pressed Enter"
+    },
+    {
+      "step": 7,
+      "screenshot": "/api/runs/eb794fe27b38/screenshots/step_007.png",
+      "thought": "This is silly, the little circle is right there but the keyboard isn't checking it. I already got the list down, but I don't trust this enough if I can't mark Buy milk done quickly.",
+      "action": {
+        "type": "stop",
+        "outcome": "partial",
+        "reason": "I got both todos added, but I cannot get Buy milk checked off from the available controls after trying the keyboard."
+      },
+      "uxSignal": "friction",
+      "pageSummary": "The todo list shows two active items, Buy milk and Call supplier, with empty circular checkboxes next to them and filters below.",
+      "result": "stopped: partial - I got both todos added, but I cannot get Buy milk checked off from the available controls after trying the keyboard."
+    }
+  ],
+  "report": {
+    "outcome": "partial",
+    "summary": "Maria Santos wanted to add two quick cafe tasks, Buy milk and Call supplier, then mark Buy milk as completed. She successfully entered both todos using the input box and Enter in steps 1 and 2. She then tried to complete Buy milk by tabbing and pressing Enter, but the item stayed unchecked after repeated attempts in steps 4 and 6. She stopped at step 7 with both todos added but Buy milk still active, so the goal was only partially completed.",
+    "personaNarrative": "I got Buy milk and Call supplier onto the list quickly, which is what I needed at the counter. But when I tried to check off Buy milk, tabbing and pressing Enter did nothing, so I felt like the simple part had become fiddly and I could not trust it before the rush.",
+    "frictionMoments": [
+      {
+        "step": 4,
+        "severity": "medium",
+        "finding": "At step 4, Maria tried pressing Enter after tabbing, expecting the first checkbox to toggle, but Buy milk remained unchecked. This created uncertainty about whether focus had reached the checkbox or whether the control supported keyboard completion.",
+        "screenshot": "/api/runs/eb794fe27b38/screenshots/step_004.png",
+        "recommendation": "Make todo checkbox focus visible when reached by Tab, and allow Space and Enter to toggle the focused checkbox. Add an automated keyboard test that tabs from the new-todo input to the first todo checkbox and verifies that pressing Enter marks it completed."
+      },
+      {
+        "step": 6,
+        "severity": "high",
+        "finding": "At step 6, Maria repeated the Tab then Enter pattern and still could not mark Buy milk complete. The simple completion task started to feel fiddly, and her confidence dropped despite the checkbox being visible.",
+        "screenshot": "/api/runs/eb794fe27b38/screenshots/step_006.png",
+        "recommendation": "Ensure each circular checkbox is in the natural tab order immediately after the input and before footer filters. When focused, show a clear outline on the circle so users know which item will be toggled before pressing Enter or Space."
+      },
+      {
+        "step": 7,
+        "severity": "high",
+        "finding": "At step 7, Maria stopped with both todos still active because she could not get Buy milk checked off using the available keyboard controls. She had successfully added both tasks, but the completion action was not discoverable enough for her current interaction path.",
+        "screenshot": "/api/runs/eb794fe27b38/screenshots/step_007.png",
+        "recommendation": "Add a visible completed state interaction affordance for keyboard users, such as a focus ring plus accessible label on each checkbox, for example 'Mark Buy milk as complete'. Verify with keyboard-only use that the first item can be completed without using a mouse."
+      }
+    ],
+    "recommendations": [
+      "Preserve the fast add flow observed in steps 1 and 2, where Maria could type a todo and press Enter without signup or onboarding blocking her.",
+      "Add a visible focus state to each todo checkbox so that after pressing Tab, as in steps 3 and 5, Maria can tell whether the circular checkbox or another control is selected.",
+      "Support keyboard toggling for todo completion, specifically pressing Enter and Space on the focused checkbox, because Maria tried Enter in steps 4 and 6 and Buy milk remained unchecked.",
+      "Set the tab order so the first todo checkbox is reached directly after the input before footer filters, matching Maria's expectation in steps 3 through 6 that the next keyboard target would be the Buy milk circle.",
+      "Add a regression test for Maria's core path: enter Buy milk, enter Call supplier, Tab to the Buy milk checkbox, press Enter or Space, and verify Buy milk is visibly completed."
+    ]
+  },
+  "createdAt": "2026-05-11T10:09:04.355120+00:00",
+  "updatedAt": "2026-05-11T10:12:50.889261+00:00"
+}

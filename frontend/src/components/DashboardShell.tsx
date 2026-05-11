@@ -141,8 +141,8 @@ export function DashboardShell({
             <Gauge size={18} />
           </div>
           <div>
-            <strong>Personate</strong>
-            <span>AI Simulations</span>
+            <strong>Personate AI</strong>
+            <span>UX Simulation Prototype</span>
           </div>
         </div>
 
@@ -204,15 +204,15 @@ export function DashboardShell({
         </section>
 
         <div className="sidebar-footer">
-          <span className="sidebar-version">personate v0.1</span>
+          <span className="sidebar-version">prototype v0.1</span>
         </div>
       </aside>
 
       <section className="dashboard-frame" id="main-content" tabIndex={-1}>
         <header className="topbar">
           <div>
-            <p className="eyebrow">Simulation workspace</p>
-            <h1>AI User Simulation</h1>
+            <p className="eyebrow">UX simulation prototype</p>
+            <h1>Live UX Simulation</h1>
           </div>
           <div className="topbar-meta">
             <span

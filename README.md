@@ -6,7 +6,35 @@ AI-generated users for live-product UX testing.
 ![Node 20+](https://img.shields.io/badge/Node-20%2B-339933?logo=node.js&logoColor=white)
 ![License MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-Personate AI is a one-persona UX simulation tool for live web products. Provide a product URL, a testing goal, and an optional audience. The backend generates a persona, drives the live app through Playwright, records screenshots and journey steps, then returns a screenshot-backed UX report for the frontend to display.
+Personate AI is an experimental, local-first prototype for simulating UX journeys on live websites. Give it a product URL, a testing goal, and an optional audience; it generates one realistic persona, drives the site with Playwright, captures screenshots, thoughts, actions, and UX signals, then turns the journey into a screenshot-backed report.
+
+This is not a hosted UX research platform or a replacement for talking to real users. It is a small prototype for quickly surfacing early usability signals: where a realistic user might hesitate, get confused, make progress, or give up.
+
+## Why Personate AI?
+
+Most browser-agent tools are built as general-purpose task executors. They are optimized to complete instructions on the web: click the right thing, fill the right field, reach the requested end state. That is useful, but UX research needs a slightly different lens.
+
+Personate AI is shaped around the signals a product team cares about during early usability review: who the user is, why they arrived, what they expected, what they noticed, where they hesitated, which screen caused friction, and what evidence supports the recommendation. The output is not just "task done" or "task failed." It is a journey with screenshots, thoughts, actions, UX signals, friction moments, and product-facing recommendations.
+
+The browser loop is built directly in this project instead of wrapping an existing agent framework because the prototype needs tight control over the UX-specific parts of the system:
+
+- **Persona behavior:** prompts are tuned for realistic user habits, concerns, patience limits, and success criteria.
+- **Action grounding:** the model can only click or type into numbered elements discovered by Playwright, which keeps decisions tied to the visible page.
+- **Evidence capture:** every step saves a screenshot, action result, thought, page summary, and UX signal.
+- **Run persistence:** `run.json` is updated after each step so the journey remains inspectable even if something fails.
+- **Report structure:** the final report is constrained around outcome, friction moments, screenshot evidence, and practical recommendations.
+
+As it was built was a hackathon, the goal was not to build a universal web agent. The goal was to make a small, inspectable browser agent that is purpose-built for UX simulation experiments.
+
+## Product Preview
+
+![Personate AI final report](docs/assets/outcome.png)
+
+The prototype follows a simple flow:
+
+| Configure a run | Review the persona | Watch the browser work |
+| --- | --- | --- |
+| ![Run setup workspace](docs/assets/workspace.png) | ![Generated persona preview](docs/assets/generated-persona.png) | ![Browser simulation running](docs/assets/using-browser.png) |
 
 ## Features
 
@@ -20,9 +48,14 @@ Personate AI is a one-persona UX simulation tool for live web products. Provide 
 
 FastAPI, Playwright, Pydantic, React, Vite, TypeScript, Gemini, and OpenAI.
 
+## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the system design, runtime flow, state machine, provider layer, browser execution model, storage choices, security boundaries, extension points, and current limitations.
+
 ## Project Structure
 
 ```txt
+ARCHITECTURE.md  Technical architecture and runtime flow
 backend/   FastAPI API, AI provider layer, Playwright runner, run storage
 frontend/  Vite React app for setup, persona preview, run state, and reports
 runs/      Generated run JSON and screenshots
@@ -116,6 +149,15 @@ The frontend always talks to the real backend. There is no runtime mock simulati
 6. Review the final report with screenshots, journey steps, friction moments, and recommendations.
 
 Generated artifacts are written under `runs/{runId}/`.
+
+## Sample Runs
+
+The `runs/` directory can include small sample artifacts that demonstrate what a finished simulation looks like. Prefer public, stable targets that are safe for readers to reproduce, such as:
+
+- `https://tally.so/` with goal `Create a simple form with the title "Customer feedback" and one question: "How was your experience?"`
+- `https://demo.playwright.dev/todomvc/` with goal `Add two todos: "Buy milk" and "Call supplier", then mark "Buy milk" as completed.`
+
+Avoid committing private sites, authenticated sessions, local-only URLs, or screenshots that reveal personal data.
 
 ## Repository Hygiene
 

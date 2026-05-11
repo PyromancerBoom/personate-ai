@@ -15,14 +15,9 @@ Thumbs.db
 .vscode/
 .claude/
 .cursor/
-sample.txt
 idea.md
 scope.md
 *.log
-
-# Run artifacts (keep the dir, ignore contents).
-runs/*
-!runs/.gitkeep
 
 frontend/node_modules/
 frontend/dist/

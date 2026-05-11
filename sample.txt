@@ -1,0 +1,9 @@
+1. **Tally feedback form**
+   - URL: `https://tally.so/`
+   - Goal: `Create a simple form with the title "Customer feedback" and two questions asking name, and "how was your experience"
+   - Audience: `Non-technical small business owner`
+
+2. **TodoMVC task list**
+   - URL: `https://demo.playwright.dev/todomvc/`
+   - Goal: `Add two todos: "Buy milk" and "Call supplier", then mark "Buy milk" as completed.`
+   - Audience: `Busy small business owner`
