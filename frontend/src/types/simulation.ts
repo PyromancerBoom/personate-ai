@@ -76,3 +76,16 @@ export type SimulationRun = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type RunSummary = {
+  id: string;
+  url: string;
+  goal: string;
+  audience?: string;
+  status: SimulationRun["status"];
+  createdAt: string;
+  updatedAt: string;
+  steps: number;
+  findings: number;
+  outcome?: SimulationReport["outcome"];
+};

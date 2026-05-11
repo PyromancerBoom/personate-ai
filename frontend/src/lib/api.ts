@@ -1,4 +1,4 @@
-import type { SimulationInput, SimulationRun } from "../types/simulation";
+import type { RunSummary, SimulationInput, SimulationRun } from "../types/simulation";
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
 
@@ -76,6 +76,10 @@ export async function startRun(runId: string): Promise<SimulationRun> {
   return request<SimulationRun>(`/api/runs/${encodeURIComponent(runId)}/start`, {
     method: "POST"
   });
+}
+
+export async function listRuns(): Promise<RunSummary[]> {
+  return request<RunSummary[]>("/api/runs");
 }
 
 export async function getRun(runId: string): Promise<SimulationRun> {

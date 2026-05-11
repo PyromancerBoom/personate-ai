@@ -141,6 +141,19 @@ class SimulationRun(CamelModel):
     updated_at: str = Field(default_factory=_utc_now_iso)
 
 
+class RunSummary(CamelModel):
+    id: str
+    url: str
+    goal: str
+    audience: str | None = None
+    status: RunStatus
+    created_at: str
+    updated_at: str
+    steps: int
+    findings: int
+    outcome: Outcome | None = None
+
+
 # AI structured-output models. These mirror the public models but stay separate
 # so we can validate provider responses before persisting them.
 

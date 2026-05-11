@@ -12,12 +12,16 @@ vi.mock("./lib/api", async () => {
   return {
     ...actual,
     createRun: vi.fn(),
+    getRun: vi.fn(),
+    listRuns: vi.fn(),
     startRun: vi.fn()
   };
 });
 
-const { createRun, startRun } = await import("./lib/api");
+const { createRun, getRun, listRuns, startRun } = await import("./lib/api");
 const mockedCreateRun = vi.mocked(createRun);
+const mockedGetRun = vi.mocked(getRun);
+const mockedListRuns = vi.mocked(listRuns);
 const mockedStartRun = vi.mocked(startRun);
 
 function deferred<T>() {
@@ -34,6 +38,8 @@ describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedCreateRun.mockResolvedValue({ ...mockCompletedRun, status: "draft", steps: [], report: undefined });
+    mockedGetRun.mockResolvedValue(mockCompletedRun);
+    mockedListRuns.mockResolvedValue([]);
     mockedStartRun.mockResolvedValue(mockCompletedRun);
   });
 
@@ -83,6 +89,31 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /generate persona/i }));
     expect(await screen.findByText("Backend unavailable")).toBeInTheDocument();
     expect(screen.queryByText(/captured evidence/i)).not.toBeInTheDocument();
+  });
+
+  it("loads and opens a previous run from history", async () => {
+    const user = userEvent.setup();
+    mockedListRuns.mockResolvedValue([
+      {
+        id: mockCompletedRun.id,
+        url: mockCompletedRun.url,
+        goal: mockCompletedRun.goal,
+        audience: mockCompletedRun.audience,
+        status: mockCompletedRun.status,
+        createdAt: mockCompletedRun.createdAt,
+        updatedAt: mockCompletedRun.updatedAt,
+        steps: mockCompletedRun.steps.length,
+        findings: mockCompletedRun.report!.frictionMoments.length,
+        outcome: mockCompletedRun.report!.outcome
+      }
+    ]);
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: new RegExp(mockCompletedRun.goal, "i") }));
+
+    expect(mockedGetRun).toHaveBeenCalledWith(mockCompletedRun.id);
+    expect(await screen.findByText(/Final simulation report/i)).toBeInTheDocument();
+    expect(screen.getByText(mockCompletedRun.report!.summary)).toBeInTheDocument();
   });
 });
 

@@ -18,7 +18,7 @@ export function FrictionCards({ moments }: { moments: FrictionMoment[] }) {
   return (
     <div className="friction-grid">
       {moments.map((moment) => (
-        <article className="friction-card" key={`${moment.step}-${moment.finding}`}>
+        <article className="friction-card" data-severity={moment.severity} key={`${moment.step}-${moment.finding}`}>
           <ScreenshotImage src={moment.screenshot} alt={`Friction screenshot for step ${moment.step}`} />
           <div className="friction-body">
             <div className="friction-meta">

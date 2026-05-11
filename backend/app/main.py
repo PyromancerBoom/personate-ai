@@ -124,6 +124,17 @@ def create_app(
         store.save_run(run)
         return _run_response(run)
 
+    @app.get("/api/runs")
+    async def list_runs(
+        store: RunStorage = Depends(get_storage),
+    ) -> JSONResponse:
+        return JSONResponse(
+            [
+                summary.model_dump(by_alias=True, exclude_none=True)
+                for summary in store.list_runs()
+            ]
+        )
+
     @app.get("/api/runs/{run_id}")
     async def get_run(
         run_id: str,

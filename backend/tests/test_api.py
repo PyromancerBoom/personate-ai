@@ -65,6 +65,25 @@ def test_get_missing_run_404(tmp_settings):
     assert resp.status_code == 404
 
 
+def test_list_runs_returns_saved_run_summaries(tmp_settings):
+    client, _, _ = _client(tmp_settings)
+    create = client.post(
+        "/api/runs",
+        json={"url": "http://localhost:3000", "goal": "test onboarding"},
+    )
+    assert create.status_code == 200
+
+    resp = client.get("/api/runs")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 1
+    assert body[0]["id"] == create.json()["id"]
+    assert body[0]["status"] == "draft"
+    assert body[0]["steps"] == 0
+    assert body[0]["findings"] == 0
+
+
 def test_screenshot_route_rejects_traversal(tmp_settings):
     client, storage, _ = _client(tmp_settings)
     rid = storage.new_run_id()

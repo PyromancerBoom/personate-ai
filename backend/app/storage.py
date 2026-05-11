@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .models import SimulationRun, SimulationReport
+from .models import RunSummary, SimulationRun, SimulationReport
 
 
 _RUN_ID_RE = re.compile(r"^[a-f0-9]{12}$")
@@ -76,6 +76,36 @@ class RunStorage:
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         return SimulationRun.model_validate(data)
+
+    def list_runs(self) -> list[RunSummary]:
+        summaries: list[RunSummary] = []
+        if not self.runs_dir.exists():
+            return summaries
+
+        for run_json in self.runs_dir.glob("*/run.json"):
+            try:
+                with run_json.open("r", encoding="utf-8") as f:
+                    data = json.load(f)
+                run = SimulationRun.model_validate(data)
+            except Exception:
+                continue
+
+            summaries.append(
+                RunSummary(
+                    id=run.id,
+                    url=run.url,
+                    goal=run.goal,
+                    audience=run.audience,
+                    status=run.status,
+                    created_at=run.created_at,
+                    updated_at=run.updated_at,
+                    steps=len(run.steps),
+                    findings=len(run.report.friction_moments) if run.report else 0,
+                    outcome=run.report.outcome if run.report else None,
+                )
+            )
+
+        return sorted(summaries, key=lambda summary: summary.updated_at, reverse=True)
 
     def save_report(self, run_id: str, report: SimulationReport) -> None:
         path = self.run_dir(run_id) / "report.json"

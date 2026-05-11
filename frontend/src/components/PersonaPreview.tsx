@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Goal, UserRound } from "lucide-react";
+import { ArrowRight, CheckCircle2, Goal } from "lucide-react";
 import type { Persona, SimulationInput } from "../types/simulation";
 
 type PersonaPreviewProps = {
@@ -8,12 +8,20 @@ type PersonaPreviewProps = {
   onStart: () => void;
 };
 
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 export function PersonaPreview({ persona, input, isRunning, onStart }: PersonaPreviewProps) {
   return (
     <section className="persona-panel" aria-label="Generated persona" id="persona">
       <div className="persona-header">
         <div className="persona-avatar" aria-hidden="true">
-          <UserRound size={22} />
+          {getInitials(persona.name)}
         </div>
         <div className="persona-title">
           <p className="eyebrow">Generated persona</p>
