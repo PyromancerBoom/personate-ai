@@ -1,424 +1,205 @@
 # Architecture
 
-Personate AI is a local-first UX simulation system. It accepts a target website, a user goal, and an optional audience, then creates one realistic persona, drives a real browser as that persona, records the journey, and turns the evidence into a UX report.
+Personate AI is a local-first prototype for simulating UX journeys on live websites. The user supplies a URL, a goal, and an optional audience. The backend builds a persona, drives a real browser as that persona, records the journey, and turns the evidence into a UX report.
 
-The core design idea is simple: keep the AI responsible for judgment and interpretation, while keeping the application responsible for state, browser control, validation, persistence, and API boundaries.
+The core design choice: the AI does not drive the browser directly. The backend owns state, validation, screenshots, storage, and action execution. The AI only decides what the persona should try next.
 
-## Design Goals
-
-- **Evidence-first UX reports.** Every report is grounded in journey steps and screenshots captured during the run.
-- **Provider independence.** Gemini and OpenAI sit behind the same `AIProvider` protocol so model vendors can change without rewriting the simulation loop.
-- **Browser realism.** The system uses Playwright to interact with real pages instead of mocked DOMs or handcrafted flows.
-- **Recoverable local persistence.** Runs are saved after every step so a process crash does not erase the journey so far.
-- **Small public surface.** The frontend talks to a compact REST API, and all provider keys stay server-side.
-- **Debuggability.** Each run creates human-readable JSON plus screenshots under `runs/{runId}/`.
-
-## High-Level System
+## System Shape
 
 ```txt
-User
-  |
-  v
-React + Vite frontend
-  - setup form
-  - persona preview
-  - saved-run history
-  - screenshot-backed report UI
-  |
-  | HTTP JSON
-  v
-FastAPI backend
-  - validates inputs
-  - owns run state
-  - serves run JSON and screenshots
-  - coordinates provider + browser
-  |
-  +--> AIProvider adapter
-  |      - GeminiProvider
-  |      - OpenAIProvider
-  |      - structured JSON validation
-  |
-  +--> Playwright BrowserSession
-  |      - Chromium page
-  |      - screenshots
-  |      - interactable element index
-  |      - action execution
-  |
-  v
-Filesystem storage
-  - runs/{runId}/run.json
-  - runs/{runId}/report.json
-  - runs/{runId}/screenshots/*.png
+React frontend
+  -> FastAPI backend
+    -> AI provider adapter
+    -> Playwright browser session
+    -> runs/{runId}/ artifacts
 ```
 
-## Request Lifecycle
+The frontend is a single-page React app that walks the user from setup → persona review → run → report. It does not own simulation state.
 
-### 1. Create Draft Run
+## Backend Responsibilities
 
-`POST /api/runs`
+Four pieces, kept separate so each one is easy to reason about:
 
-1. The frontend sends `{ url, goal, audience? }`.
-2. FastAPI validates that the URL is non-empty and uses `http` or `https`.
-3. The backend checks that the configured provider key exists.
-4. `RunStorage` creates a 12-character run ID.
-5. The provider generates one persona from the URL, goal, and audience.
-6. The backend saves `run.json` with status `draft`.
-7. The frontend displays the persona and waits for the user to start the run.
+- **API and state (`main.py`):** FastAPI validates the request, generates the persona, creates the run, runs `/start` synchronously, lists runs, and serves screenshots.
+- **Simulation loop (`simulation.py`):** `run_simulation()` assumes a persona already exists and coordinates the browser, provider decisions, step recording, and the final report.
+- **Browser control (`browser.py`):** `BrowserSession` wraps one Playwright Chromium page — screenshots, element indexing, page settling, action execution.
+- **Persistence (`storage.py`):** `RunStorage` writes `run.json` and `report.json` atomically, plus screenshots, under `runs/{runId}/`.
 
-### 2. Start Simulation
+This split keeps the loop inspectable. Browser code does not know about reports. Provider code does not write files. Storage does not decide what the user should do next.
 
-`POST /api/runs/{runId}/start`
+## How The Browser Agent Works
 
-1. The backend loads the saved run.
-2. It rejects missing runs, already-running runs, and completed runs.
-3. It marks the run `running` and persists that state.
-4. `run_simulation()` opens Chromium through Playwright and navigates to the target URL.
-5. The backend enters the step loop.
+### The loop
 
-### 3. Step Loop
+For each step, capped at `max_journey_steps` (default 12):
 
-For each step up to `MAX_JOURNEY_STEPS`:
+1. Take a screenshot.
+2. Index visible interactable elements.
+3. Send the persona, goal, screenshot, last 6 steps, and numbered element list to the provider.
+4. Receive one structured decision: `thought`, `page_summary`, `ux_signal`, and an action.
+5. Convert that decision into a typed action.
+6. Execute the action.
+7. Settle the page.
+8. Record the step in `run.json`.
 
-1. Capture `screenshots/step_NNN.png`.
-2. Index visible interactable elements in the page.
-3. Send persona, goal, screenshot, recent step history, and element list to the AI provider.
-4. Validate the provider's structured `DecisionOutput`.
-5. Convert the decision into a typed action such as `click`, `type`, `scroll_down`, or `stop`.
-6. Execute the action in Playwright.
-7. Append a `JourneyStep` containing thought, action, result, UX signal, page summary, and screenshot URL.
-8. Save `run.json`.
-9. Stop if the provider chooses `stop`.
+### Action vocabulary
 
-### 4. Report Generation
+The model can return exactly one of:
 
-After the browser loop ends:
+- `click(element_id)`
+- `type(element_id, text, submit?)` — `submit=true` presses Enter after typing
+- `scroll_down`
+- `back`
+- `wait`
+- `press_key("enter" | "tab" | "escape")`
+- `stop(outcome, reason)` — outcome is `success`, `failure`, or `partial`
 
-1. The provider receives the completed journey log.
-2. It returns a structured report with outcome, summary, persona narrative, friction moments, and recommendations.
-3. The backend filters friction evidence to valid recorded step numbers.
-4. The backend saves `report.json` and updates `run.json` with status `completed`.
-5. If report generation fails, the run is marked `failed` with the error, while the recorded journey remains available.
+### Element indexing
 
-## Simulation State Machine
+Injected JS walks the DOM, filters to visible interactables (anchors, buttons, inputs, textareas, contenteditables, ARIA-roled widgets like `role=button`/`combobox`/`tab`, `[onclick]`, and focusable `[tabindex]`), and returns each one with its tag, type, role, accessible name, and an xpath.
 
-```txt
-draft
-  |
-  | POST /api/runs/{runId}/start
-  v
-running
-  |
-  +--> completed
-  |      report generated successfully
-  |
-  +--> failed
-         browser launch failed
-         screenshot failed
-         report generation failed
-         process restarted while running
+The list is numbered and shown to the model in a compact form:
+
+```
+[0]<a role="link">Pricing</a>
+[1]<button>Sign up</button>
+[2]<input type="email">your@email.com</input>
 ```
 
-`POST /api/runs/{runId}/start` returns HTTP 200 for completed runs and run-level failures. The frontend must inspect `status` rather than treating every 200 as success.
+### Grounding contract
 
-Request-level problems still use normal HTTP errors:
+`click` and `type` may only refer to an integer index from the current list. The backend resolves index → cached xpath → Playwright locator. An index outside the list is rejected at execute time and recorded as the step result instead of crashing the run. This is what stops the model from inventing selectors.
 
-- `400` for invalid input or invalid screenshot paths.
-- `404` for missing runs or screenshots.
-- `409` for invalid run transitions, such as starting an already-running run.
-- `500` for missing provider configuration.
-- `502` for persona generation failure.
+### Page settling
 
-## Backend Components
+After every action, the browser waits in three stages:
 
-### `main.py`
+1. `wait_for_load_state("domcontentloaded")`.
+2. A JS predicate that requires:
+   - `document.readyState` past `loading`,
+   - body has visible text or more than 50 elements (the "white page" guard),
+   - and a 500ms quiet window from a `MutationObserver`.
+3. Double `requestAnimationFrame` so the next screenshot captures painted pixels.
 
-Defines the FastAPI app, CORS config, dependency injection, and REST routes. It keeps HTTP concerns close to the boundary and delegates persistence to `RunStorage`, provider calls to `AIProvider`, and browser execution to `run_simulation()`.
+Hard-capped at 7s. Never raises — the loop must keep moving. This replaces `networkidle`, which is unreliable on Gmail, Google, and most modern SPAs (Playwright issues #1497, #2515, #6536).
 
-On Windows, it sets `WindowsProactorEventLoopPolicy` before Uvicorn creates the event loop. This matters because Playwright launches Chromium through subprocess APIs that require the Proactor loop on Windows.
+### Typing fallbacks
 
-### `simulation.py`
+Many real apps use rich editors instead of plain inputs, so `type` tries three strategies in order:
 
-Owns the orchestration loop. It is deliberately the only place where provider decisions, browser actions, journey step creation, and run persistence meet.
+1. `locator.fill()` — fast path for plain `<input>` and `<textarea>`.
+2. Focus + JS-clear + `page.keyboard.type()` — works on contenteditable widgets (ProseMirror, Tally, Notion) that listen for real key events.
+3. Click + `Ctrl+A` + `Delete` + `keyboard.type()` — last resort for editors that only respond to select-all.
 
-Important behavior:
+The strategy that succeeded is recorded in the step result for debugging.
 
-- Saves the run after every successful step.
-- Converts provider failure after at least one step into a forced partial stop rather than discarding the journey.
-- Marks the run failed for unrecoverable failures before any useful journey exists.
-- Always closes the browser in a `finally` block.
+## Why Build The Agent Loop Here?
 
-### `browser.py`
+Many browser-agent frameworks aim to be general task runners. Personate AI has a narrower goal: simulate a realistic user and produce UX evidence.
 
-Wraps one Playwright Chromium page.
+Owning the loop gives control over the parts that matter for UX research:
 
-Responsibilities:
+- Persona prompts can focus on habits, concerns, patience, and success criteria.
+- Actions can be constrained to visible numbered elements.
+- Every step saves a screenshot, thought, result, UX signal, and page summary.
+- Failed or partial runs still leave behind useful evidence.
+- Reports can be shaped around friction moments and recommendations.
 
-- Launch a browser context with configured viewport.
-- Capture viewport screenshots.
-- Build a numbered list of interactable elements.
-- Execute typed actions selected by the AI provider.
-- Wait for the page to settle after actions.
+The goal is not the most powerful web agent. The goal is a small, readable agent loop for UX experiments.
 
-The element index is intentionally constrained. The provider can only click or type into elements that Playwright discovered and numbered. This reduces hallucinated selectors and keeps actions tied to what is actually visible or near the viewport.
+## AI Provider Boundary
 
-The settle logic avoids relying only on Playwright `networkidle`, which is brittle for SPAs and pages with long-lived network activity. Instead, the browser waits for document readiness, painted body content, a quiet DOM mutation window, and a compositor frame before the next screenshot.
+The backend talks to an `AIProvider` Protocol, not directly to a vendor. The Protocol has three methods:
 
-Typing uses tiered strategies:
+- `generate_persona(input)`
+- `decide_next_action(persona, goal, screenshot, last 6 steps, element list)`
+- `generate_report(run, persona, steps)`
 
-1. Native `fill()` for plain inputs and textareas.
-2. Focus, clear through JavaScript, and keyboard typing for rich editors.
-3. Select-all plus typing as a fallback.
+Both providers (Gemini, OpenAI) return JSON validated by Pydantic. Two specifics worth knowing:
 
-That extra work makes sites like Tally, Notion-style editors, and contenteditable fields more likely to behave like they would for a real user.
+- **Flat decision schema.** Gemini's `response_schema` does not reliably handle discriminated unions, so the model returns a flat `DecisionOutput` (one `action_type` plus optional `element_id`, `text`, `submit`, `key`, `outcome`, `reason`). `DecisionOutput.to_action()` converts it into a typed `JourneyAction`.
+- **OpenAI strict mode.** OpenAI's strict JSON mode requires `additionalProperties: false` and every property `required` on every object. Pydantic's emitted schema does not include those, so we patch the schema recursively before sending it.
 
-### `ai_provider.py`
-
-Defines the model boundary. The backend calls the protocol, not a vendor SDK directly:
-
-```txt
-generate_persona(input) -> Persona
-decide_next_action(persona, goal, current_step, screenshot_path, previous_steps, elements) -> DecisionOutput
-generate_report(run, persona, steps) -> SimulationReport
-```
-
-Gemini uses native structured output schemas. OpenAI uses strict JSON schema responses derived from Pydantic models. Both providers validate responses before returning application models to the rest of the backend.
-
-The provider prompts are split by responsibility:
-
-- Persona generation prompt creates one believable user.
-- Decision prompt roleplays that user and returns one grounded browser action.
-- Report prompt summarizes only recorded evidence.
-
-### `models.py`
-
-Contains the shared domain model.
-
-Key models:
-
-- `SimulationInput`: URL, goal, optional audience.
-- `Persona`: generated fictional user.
-- `SimulationRun`: full persisted run.
-- `RunSummary`: compact saved-run list item.
-- `JourneyStep`: one screenshot-backed browser step.
-- `JourneyAction`: discriminated union of supported browser actions.
-- `SimulationReport`: final UX report.
-
-API JSON uses camelCase through the shared `CamelModel` base class, while Python code can use snake_case.
-
-### `storage.py`
-
-Persists runs on the local filesystem.
-
-Storage choices:
-
-- `run.json` is the main source of truth.
-- `report.json` is saved separately for easier inspection.
-- Screenshots are stored as PNG files.
-- JSON writes are atomic, using a temporary file followed by `os.replace()`.
-- Screenshot serving validates run IDs and file names to avoid path traversal.
-- Startup sweeps orphaned `running` runs to `failed`, which prevents permanent 409 responses after a server restart.
-
-## Frontend Components
-
-The frontend is a thin stateful client over the backend API.
-
-### `App.tsx`
-
-Coordinates the product workflow:
-
-- setup input
-- create draft run
-- persona preview
-- start run
-- failed/completed report states
-- saved-run history
-- selected historical run display
-
-The frontend does not simulate AI locally. It always talks to the backend.
-
-### `lib/api.ts`
-
-Provides typed API helpers:
-
-- `createRun`
-- `startRun`
-- `getRun`
-- `listRuns`
-
-It normalizes the base URL from `VITE_API_BASE_URL`, defaulting to `http://localhost:8000`.
-
-### UI Components
-
-`components/` contains workflow-specific UI rather than domain logic:
-
-- `SetupForm`
-- `DashboardShell`
-- `PersonaPreview`
-- `RunningState`
-- `ReportView`
-- `Timeline`
-- `FrictionCards`
-- `ScreenshotImage`
-- `ErrorState`
-
-This keeps backend state transitions and provider behavior out of the React components.
-
-## Data Model
-
-Each run has this conceptual shape:
-
-```txt
-SimulationRun
-  id
-  url
-  goal
-  audience?
-  status: draft | running | completed | failed
-  persona?
-  steps[]
-    step
-    screenshot
-    thought
-    action
-    uxSignal
-    pageSummary
-    result
-  report?
-    outcome: success | failure | partial
-    summary
-    personaNarrative
-    frictionMoments[]
-    recommendations[]
-  error?
-  createdAt
-  updatedAt
-```
-
-The report does not replace the journey. It is a derived interpretation of recorded steps, and every friction moment should point back to a real step screenshot.
+If a provider response fails JSON validation, the provider retries once with a stricter "reply only with valid JSON" instruction. If that fails too, it returns a synthetic `stop/partial` decision so the loop records a clean failure instead of crashing.
 
 ## API Surface
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `POST` | `/api/runs` | Create a draft run and generated persona. |
-| `GET` | `/api/runs` | List saved run summaries. |
-| `GET` | `/api/runs/{runId}` | Load a full saved run. |
-| `POST` | `/api/runs/{runId}/start` | Run the simulation synchronously. |
-| `GET` | `/api/runs/{runId}/screenshots/{file}` | Serve a captured PNG screenshot. |
-
-## Configuration
-
-Important backend settings:
-
-| Setting | Default | Purpose |
-| --- | --- | --- |
-| `AI_PROVIDER` | `gemini` | Selects `GeminiProvider` or `OpenAIProvider`. |
-| `GEMINI_API_KEY` | empty | Server-side Gemini key. |
-| `GEMINI_MODEL` | `gemini-2.5-pro` | Gemini model name. |
-| `OPENAI_API_KEY` | empty | Server-side OpenAI key. |
-| `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model name. |
-| `PLAYWRIGHT_HEADLESS` | `false` | Whether Chromium runs headless. |
-| `MAX_JOURNEY_STEPS` | `12` | Hard cap for browser steps. |
-| `RUNS_DIR` | `../runs` | Filesystem location for run artifacts. |
-| `VIEWPORT_WIDTH` | `1280` | Browser viewport width. |
-| `VIEWPORT_HEIGHT` | `900` | Browser viewport height. |
-
-Important frontend setting:
-
-| Setting | Default | Purpose |
-| --- | --- | --- |
-| `VITE_API_BASE_URL` | `http://localhost:8000` | Backend API base URL. |
-
-## Persistence Layout
-
-```txt
-runs/
-  .gitkeep
-  {runId}/
-    run.json
-    report.json
-    screenshots/
-      step_001.png
-      step_002.png
+```
+POST   /api/runs                              create run + persona
+GET    /api/runs                              list run summaries (newest first)
+GET    /api/runs/{runId}                      load a run
+POST   /api/runs/{runId}/start                run simulation synchronously
+GET    /api/runs/{runId}/screenshots/{file}   serve a step screenshot
 ```
 
-The application can run without committed sample runs. Committed runs are only demo artifacts for readers.
+`/start` is synchronous: it returns HTTP 200 with the final run, whose `status` is `completed` or `failed`. The frontend must inspect `status` to tell the two apart. Non-2xx is reserved for request-level errors (404 for missing run, 409 for state conflict).
 
-## Security And Privacy Boundaries
+## Run State And Storage
 
-- Provider API keys are read only by the backend from `backend/.env`.
-- The frontend never receives provider keys.
-- Screenshot serving is limited to validated run IDs and `.png` file names.
-- The backend rejects non-HTTP URLs for new runs.
-- Generated run files can contain page screenshots, typed text, target URLs, and model-generated summaries. Treat `runs/` as publishable only after manual review.
-- The system is intended for trusted local use. It does not include authentication, tenant isolation, queue isolation, or sandboxed remote execution.
+A run moves through a small state machine:
 
-## Why Filesystem Storage
+```txt
+draft -> running -> completed
+                 -> failed
+```
 
-Filesystem storage is a good fit for the current local-first MVP:
+- `draft` — persona exists, browser has not started.
+- `running` — Playwright is executing the journey.
+- `completed` — final report generated.
+- `failed` — stopped because of a browser, provider, or report error.
 
-- Easy to inspect and debug.
-- No database setup for contributors.
-- Screenshots and JSON stay next to each other.
-- Atomic JSON writes are enough for the single-process development workflow.
+Each run is stored on disk:
 
-A hosted version would likely replace this with a database for run metadata, object storage for screenshots, and a background job queue for simulations.
+```txt
+runs/{runId}/
+  run.json
+  report.json
+  screenshots/
+    step_001.png
+    step_002.png
+```
 
-## Concurrency Model
+`run.json` is the source of truth and is saved after every step. A few details that keep this safe:
 
-The API supports multiple saved runs, but each `start` request runs synchronously inside the request lifecycle. There is no worker queue yet.
+- **Atomic writes.** Each save goes through `tempfile.mkstemp` + `os.replace`, so a killed process leaves either the old file or the new one — never a half-written one.
+- **Orphan sweep.** On startup, `sweep_orphaned_running` scans every `run.json` and flips `running` → `failed` with error `"orphaned: process restarted while running"`. Without this, a killed `uvicorn` would leave runs that 409 forever on `/start`.
+- **Run ID and path safety.** Run IDs are 12-hex-char tokens checked by regex. Screenshot serving resolves the requested path and verifies it stays inside the run's `screenshots/` dir, which blocks path-traversal.
 
-Implications:
+Filesystem storage is a deliberate prototype choice — easy to inspect, easy to commit as sample output, no database setup. A hosted version would likely move metadata to a database and screenshots to object storage.
 
-- A long simulation keeps the HTTP request open.
-- If the backend process dies during a run, startup marks orphaned `running` runs as `failed`.
-- Two simultaneous starts for the same run are rejected once the run is marked `running`.
-- Multi-user scheduling, cancellation, progress streaming, and retry queues are future work.
+## Failure Handling
 
-## Extension Points
+The system tries to keep useful evidence even when a run fails.
 
-### Add A New AI Provider
+- If browser launch or the first AI decision fails, the run becomes `failed`.
+- If an AI decision fails after some steps, the loop records a forced partial `stop` and stops.
+- If a provider returns malformed JSON twice in a row, the loop records a forced partial `stop` rather than crashing.
+- If an action references an element index that no longer exists, the error is recorded as the step result and the loop continues.
+- If an action throws, the exception message is written into the step instead of crashing the run.
+- If report generation fails, the journey remains saved for debugging.
+- The browser is closed in a `finally` block after each run.
 
-Implement the `AIProvider` protocol in `ai_provider.py`, add settings in `config.py`, and update `build_provider()`.
+Failures stay visible and inspectable instead of silent.
 
-The provider must return validated application models, not raw vendor responses.
+## Weaknesses And Limitations
 
-Note: Works best with GPT-5.5 and Opus 4.7 for vision alignment, but the structured output and validation should allow a range of models to work with varying degrees of report quality.
+- Runs execute synchronously inside the HTTP request.
+- There is no job queue, cancellation, or live progress stream.
+- Only one persona runs at a time.
+- Only one browser page is supported.
+- Complex login, multi-tab flows, file uploads, and native mobile apps are out of scope.
+- The agent is only as good as the screenshot, element index, and model response.
+- Some custom UI widgets may not expose clean interactable elements.
+- There is no authentication, multi-tenant isolation, or hosted sandbox.
+- Local screenshots can contain sensitive page data, so sample runs need manual review before publishing.
 
-### Add A New Browser Action
+## Future Extensions
 
-Add a new action model in `models.py`, teach `DecisionOutput.to_action()` how to create it, update the decision prompt, and implement execution in `BrowserSession.execute()`.
-
-### Add Hosted Execution
-
-A production architecture would split the synchronous run endpoint into:
-
-1. API request creates or starts a job.
-2. Worker process executes Playwright and provider calls.
-3. Frontend polls or subscribes for progress.
-4. Artifacts are written to durable storage.
-
-### Add Richer Reports
-
-Reports can be expanded without changing the browser loop by extending `ReportOutput`, `SimulationReport`, and the frontend report components.
-
-## Sample Runs
-
-Committed runs are intended as small, reproducible examples for public readers. Prefer public, stable targets and short tasks, for example:
-
-- `https://tally.so/`: create a simple feedback form.
-- `https://demo.playwright.dev/todomvc/`: add todos and mark one complete.
-
-Avoid committing private customer sites, authenticated sessions, local-only URLs, or screenshots that reveal personal data.
-
-## Current Limitations
-
-- One persona per run.
-- One browser page per run.
-- Web apps only.
-- No complex login or multi-tab flows.
-- No hosted infrastructure or background worker queue.
-- No live progress streaming from the backend.
-- No authentication or multi-tenant data isolation.
-- No database-backed search or analytics over runs.
-- Screenshots and reports are stored on local disk.
+- Add a background worker queue so simulations do not block HTTP requests.
+- Stream step progress to the frontend with polling, SSE, or WebSockets.
+- Add cancellation and retry controls.
+- Store run metadata in a database and screenshots in object storage.
+- Add authenticated project spaces and access control.
+- Support more browser actions, such as drag, hover, upload, and multi-tab flows.
+- Add richer report exports for product, design, or engineering handoff.
+- Run multiple personas against the same goal and compare friction patterns.
